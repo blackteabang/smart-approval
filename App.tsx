@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -10,32 +9,16 @@ import ChatRoomList from './components/ChatRoomList';
 import ChatRoomDetail from './components/ChatRoomDetail';
 import { TabType, ApprovalDocument, ApprovalStatus, User, ApprovalLine, ApprovalRole, Attachment, ChatRoom } from './types';
 import { MOCK_DOCUMENTS, MOCK_USERS, TEMPLATES } from './constants';
+import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser, deleteUser } from './services/dbService';
 
-const STORAGE_KEY_USERS = 'smartapprove_users';
-const STORAGE_KEY_DOCS = 'smartapprove_docs';
 const STORAGE_KEY_CHATS = 'smartapprove_chats';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [mockUsers, setMockUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_USERS);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error("Failed to parse users from storage", e);
-      }
-    }
-    return MOCK_USERS;
-  });
+  const [mockUsers, setMockUsers] = useState<User[]>(MOCK_USERS);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references'>('approvals'); // Sub-tab for documents
-  const [documents, setDocuments] = useState<ApprovalDocument[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-    if (saved) return JSON.parse(saved);
-    return MOCK_DOCUMENTS;
-  });
+  const [documents, setDocuments] = useState<ApprovalDocument[]>(MOCK_DOCUMENTS);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CHATS);
     if (saved) return JSON.parse(saved);
@@ -46,17 +29,19 @@ const App: React.FC = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [preSelectedTemplateId, setPreSelectedTemplateId] = useState<string | null>(null);
 
-  // Persistence Sync: Save users
+  // Load initial data from DB or LocalStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(mockUsers));
-  }, [mockUsers]);
+    const loadData = async () => {
+      const users = await getUsers();
+      setMockUsers(users.length > 0 ? users : MOCK_USERS);
+      
+      const docs = await getDocuments();
+      setDocuments(docs.length > 0 ? docs : MOCK_DOCUMENTS);
+    };
+    loadData();
+  }, []);
 
-  // Persistence Sync: Save documents
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(documents));
-  }, [documents]);
-
-  // Persistence Sync: Save chats
+  // Persistence Sync: Save chats (Local only for now)
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(chatRooms));
   }, [chatRooms]);
@@ -151,7 +136,8 @@ const App: React.FC = () => {
     setIsProfileMenuOpen(false);
   };
 
-  const handleSignUp = (newUser: User) => {
+  const handleSignUp = async (newUser: User) => {
+    await saveUser(newUser);
     setMockUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
     setActiveTab('dashboard');
@@ -172,7 +158,7 @@ const App: React.FC = () => {
     setActiveTab('draft');
   };
 
-  const handleNewRequest = (
+  const handleNewRequest = async (
     title: string, 
     content: string, 
     templateId: string, 
@@ -202,14 +188,23 @@ const App: React.FC = () => {
       attachments: attachments
     };
     
-    setDocuments(prev => [newDoc, ...prev]);
-    setActiveTab('documents');
-    setActiveDocTab('drafts');
-    setPreSelectedTemplateId(null);
+    const success = await createDocument(newDoc);
+    if (success) {
+      setDocuments(prev => [newDoc, ...prev]);
+      setActiveTab('documents');
+      setActiveDocTab('drafts');
+      setPreSelectedTemplateId(null);
+    } else {
+      alert('문서 저장에 실패했습니다.');
+    }
   };
 
-  const handleProcessApproval = (docId: string, status: 'APPROVED' | 'REJECTED') => {
+  const handleProcessApproval = async (docId: string, status: 'APPROVED' | 'REJECTED') => {
     if (!currentUser) return;
+
+    // Optimistic UI update
+    let updatedApprovalLine: ApprovalLine[] = [];
+    let newDocStatus = '';
 
     setDocuments(prevDocs => prevDocs.map(doc => {
       if (doc.id !== docId) return doc;
@@ -225,7 +220,7 @@ const App: React.FC = () => {
         processedAt: new Date().toISOString()
       };
 
-      let newDocStatus = doc.status;
+      newDocStatus = doc.status;
       if (status === 'REJECTED') {
         newDocStatus = ApprovalStatus.REJECTED;
       } else {
@@ -235,20 +230,27 @@ const App: React.FC = () => {
         }
       }
 
-      const updatedDoc = { ...doc, approvalLine: updatedLine, status: newDocStatus };
+      updatedApprovalLine = updatedLine;
+      const updatedDoc = { ...doc, approvalLine: updatedLine, status: newDocStatus as ApprovalStatus };
       if (selectedDoc?.id === docId) {
         setSelectedDoc(updatedDoc);
       }
       return updatedDoc;
     }));
+
+    if (updatedApprovalLine.length > 0) {
+      await updateDocumentStatus(docId, newDocStatus, updatedApprovalLine);
+    }
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
+  const handleUpdateUser = async (updatedUser: User) => {
+    await saveUser(updatedUser);
     setMockUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (window.confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      await deleteUser(userId);
       setMockUsers(prev => prev.filter(u => u.id !== userId));
       if (currentUser?.id === userId) {
         handleLogout();
@@ -434,19 +436,6 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-end z-30 flex-shrink-0">
           <div className="flex items-center gap-6">
-            <button
-              onClick={() => {
-                const currentKey = localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API_KEY || '';
-                const key = window.prompt('Gemini API 키를 입력하세요 (.env 파일이 있으면 자동 적용됩니다)', currentKey);
-                if (key !== null) {
-                  localStorage.setItem('GEMINI_API_KEY', key.trim());
-                  alert('API 키가 저장되었습니다.');
-                }
-              }}
-              className="px-3 py-2 text-xs font-bold rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors"
-            >
-              {import.meta.env.VITE_GEMINI_API_KEY ? 'AI 키 (Env)' : 'AI 키'}
-            </button>
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
               <span className="text-lg">🔔</span>
               <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
