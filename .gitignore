@@ -23,7 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment Variables (중요: API 키 유출 방지)
+# Environment Variables
 .env
-.env.local
-.env.*.local
+.env.*
+
+# System Generated Files
+migrated_prompt_history
