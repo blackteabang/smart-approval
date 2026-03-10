@@ -1,12 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
 const resolveApiKey = (): string | undefined => {
+  // Vite 환경 변수 우선 확인 (import.meta.env)
+  // Vercel 등 배포 환경에서는 빌드 타임에 주입됩니다.
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+  
+  if (apiKey) return apiKey;
+
+  // 로컬/기타 환경에 대한 폴백
   const p: any = typeof process !== 'undefined' ? process : undefined;
-  const fromProcess = p?.env?.API_KEY as string | undefined;
-  const ie: any = typeof import.meta !== 'undefined' ? import.meta : undefined;
-  const fromVite = ie?.env?.VITE_GEMINI_API_KEY as string | undefined;
-  const fromGemini = ie?.env?.GEMINI_API_KEY as string | undefined;
-  return fromProcess || fromVite || fromGemini;
+  return p?.env?.API_KEY || p?.env?.GEMINI_API_KEY;
 };
 
 const getClient = () => {
