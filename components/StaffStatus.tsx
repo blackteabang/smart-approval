@@ -16,6 +16,9 @@ interface EditUserModalProps {
   onSave: (user: User) => void;
 }
 
+/**
+ * 직원 정보 수정 모달 컴포넌트
+ */
 const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: user.name,
@@ -29,9 +32,12 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  /**
+   * 수정 사항 저장 핸들러
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Only include password if it was changed (and only if field exists)
+    // 비밀번호가 변경된 경우에만 포함 (필드가 존재하는 경우)
     const updatedUser = { ...user, ...formData };
     if (!formData.password) {
       delete updatedUser.password;
@@ -39,6 +45,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
     onSave(updatedUser);
   };
 
+  /**
+   * 비밀번호 초기화 핸들러 (관리자 전용)
+   */
   const handleResetPassword = () => {
     if (confirm('비밀번호를 초기화 하시겠습니까? 초기 비밀번호는 "1234" 입니다.')) {
       onSave({ ...user, password: '1234' });
@@ -109,7 +118,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
             />
           </div>
           
-          {/* Password Change Field */}
+          {/* 비밀번호 변경 필드 */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase">
               {currentUser.role === 'ADMIN' ? '비밀번호 관리' : '비밀번호 변경'}
@@ -142,13 +151,13 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition-colors"
             >
               취소
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-100 transition-colors"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
             >
               저장하기
             </button>
@@ -159,110 +168,91 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
   );
 };
 
+/**
+ * 직원 현황 및 조직도 컴포넌트
+ */
 const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateUser, onDeleteUser, onStartChat }) => {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  
-  // Extract departments
+
+  // 부서 목록 추출
   const departments = Array.from(new Set(users.map(u => u.department))).sort();
   
-  // Filter users based on selection
+  // 선택된 부서에 따라 필터링
   const filteredUsers = selectedDept 
     ? users.filter(u => u.department === selectedDept)
     : users;
 
-  // Tree Node Component
-  const DeptTreeNode = ({ dept, isSelected, onClick }: { dept: string, isSelected: boolean, onClick: () => void }) => {
-    const count = users.filter(u => u.department === dept).length;
-    return (
-      <div 
-        onClick={onClick}
-        className={`
-          flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all mb-1
-          ${isSelected ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}
-        `}
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="text-lg opacity-70">📂</span>
-          <span className="text-sm">{dept}</span>
-        </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full ${isSelected ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
-          {count}
-        </span>
-      </div>
-    );
-  };
-
   return (
-    <div className="h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="mb-6 flex-shrink-0">
-        <h2 className="text-2xl font-bold text-slate-800">직원현황 / 조직도</h2>
-        <p className="text-slate-500">전체 부서별 조직 구성 및 연락처를 확인하고 관리할 수 있습니다.</p>
-      </div>
-
-      <div className="flex-1 flex gap-6 min-h-0 overflow-hidden">
-        {/* Left: Organization Tree */}
-        <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <span>🌳</span> 조직도
-            </h3>
-          </div>
-          <div className="p-3 overflow-y-auto flex-1">
-            <div 
-              onClick={() => setSelectedDept(null)}
-              className={`
-                flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all mb-1
-                ${selectedDept === null ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}
-              `}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">🏢</span>
-                <span className="text-sm">전체 조직</span>
-              </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedDept === null ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
-                {users.length}
-              </span>
-            </div>
-            
-            <div className="mt-2 pl-4 border-l-2 border-slate-100 ml-4 space-y-0.5">
-              {departments.map(dept => (
-                <DeptTreeNode 
-                  key={dept} 
-                  dept={dept} 
-                  isSelected={selectedDept === dept} 
-                  onClick={() => setSelectedDept(dept)} 
-                />
-              ))}
-            </div>
-          </div>
+    <div className="flex gap-6 h-[calc(100vh-100px)]">
+      {/* 좌측: 조직도 트리 */}
+      <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+            <span>🌳</span> 조직도
+          </h3>
         </div>
-
-        {/* Right: User Grid */}
-        <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center flex-shrink-0">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <span>👥</span> {selectedDept || '전체 직원'} 목록
-              <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full ml-2">
-                {filteredUsers.length}
-              </span>
-            </h3>
-            {/* Optional: Add User Button could go here */}
+        <div className="p-3 overflow-y-auto flex-1">
+          <div 
+            onClick={() => setSelectedDept(null)}
+            className={`
+              flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all mb-1
+              ${selectedDept === null ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}
+            `}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🏢</span>
+              <span className="text-sm">전체 조직</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedDept === null ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
+              {users.length}
+            </span>
           </div>
           
-          <div className="p-6 overflow-y-auto flex-1">
-            {filteredUsers.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <span className="text-4xl mb-4">👻</span>
-                <p>소속된 직원이 없습니다.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredUsers.sort((a, b) => a.name.localeCompare(b.name)).map(user => (
-                  <div key={user.id} className="group relative p-4 rounded-xl border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all bg-white hover:bg-blue-50/10">
-                    
-                    {/* Admin Actions or Self Actions */}
-                    <div className={`absolute top-3 right-3 flex gap-1 transition-opacity z-10 ${
+          <div className="mt-2 pl-4 border-l-2 border-slate-100 ml-4 space-y-0.5">
+            {departments.map(dept => {
+              const count = users.filter(u => u.department === dept).length;
+              const isSelected = selectedDept === dept;
+              
+              return (
+                <div 
+                  key={dept}
+                  onClick={() => setSelectedDept(dept)}
+                  className={`
+                    flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all mb-1
+                    ${isSelected ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}
+                  `}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg opacity-70">📂</span>
+                    <span className="text-sm">{dept}</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${isSelected ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 우측: 직원 카드 리스트 */}
+      <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-white sticky top-0 z-10">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            {selectedDept || '전체 직원'} 
+            <span className="text-slate-400 font-normal text-sm">({filteredUsers.length}명)</span>
+          </h2>
+        </div>
+        
+        <div className="overflow-auto flex-1 p-6 bg-slate-50/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+            {filteredUsers.map(user => (
+              <div key={user.id} className="group relative bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+                
+                {/* 관리자 권한 또는 본인일 경우 수정/삭제 버튼 표시 */}
+                <div className={`absolute top-3 right-3 flex gap-1 transition-opacity z-10 ${
                       (currentUser.role === 'ADMIN' || currentUser.id === user.id) ? 'opacity-0 group-hover:opacity-100' : 'hidden'
                     }`}>
                       <button 
@@ -281,41 +271,45 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
                           🗑️
                         </button>
                       )}
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="relative">
+                    <img 
+                      src={user.avatar} 
+                      alt={user.name}
+                      className="w-16 h-16 rounded-2xl object-cover bg-slate-100 shadow-inner"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-slate-800 truncate">{user.name}</h3>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">
+                        {user.position}
+                      </span>
+                    </div>
+                    
+                    <div className="text-xs text-slate-500 mb-3 font-medium">
+                      {user.department}
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="relative flex-shrink-0">
-                        <img 
-                          src={user.avatar} 
-                          alt={user.name} 
-                          className="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover bg-slate-100"
-                        />
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <p className="font-bold text-slate-900 truncate text-base">{user.name}</p>
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                            {user.position}
-                          </span>
-                        </div>
-                        <p className="text-xs font-medium text-blue-600 mb-2 truncate">{user.department}</p>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <span>📱</span>
-                          <span className="truncate">{user.phone}</span>
-                        </div>
-                      </div>
+                    <div className="flex flex-col gap-1.5">
+                      <a href={`tel:${user.phone}`} className="flex items-center gap-2 text-xs text-slate-400 hover:text-blue-500 transition-colors">
+                        <span>📞</span> {user.phone}
+                      </a>
+                      <button 
+                        onClick={() => onStartChat(user)}
+                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-blue-500 transition-colors text-left"
+                      >
+                        <span>💬</span> 메시지 보내기
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => onStartChat(user)}
-                      className="w-full mt-3 py-1.5 text-[10px] font-bold text-blue-600 border border-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white"
-                    >
-                      메시지 보내기
-                    </button>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>

@@ -14,11 +14,17 @@ import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser,
 
 const STORAGE_KEY_CHATS = 'smartapprove_chats';
 
+/**
+ * 애플리케이션 최상위 컴포넌트
+ * - 상태 관리: 사용자, 문서, 채팅방, 탭 전환 등 전역 상태 관리
+ * - 라우팅: 현재 선택된 탭(activeTab)에 따라 화면 렌더링
+ * - 초기화: 로컬 저장소 또는 DB에서 초기 데이터 로드
+ */
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [mockUsers, setMockUsers] = useState<User[]>(MOCK_USERS);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'all'>('approvals'); // Sub-tab for documents
+  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'all'>('approvals'); // 문서함 서브 탭
   const [documents, setDocuments] = useState<ApprovalDocument[]>(MOCK_DOCUMENTS);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CHATS);
@@ -30,7 +36,7 @@ const App: React.FC = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [preSelectedTemplateId, setPreSelectedTemplateId] = useState<string | null>(null);
 
-  // Load initial data from DB or LocalStorage
+  // 초기 데이터 로드 (DB 또는 LocalStorage)
   useEffect(() => {
     const loadData = async () => {
       const users = await getUsers();
@@ -42,15 +48,18 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // Persistence Sync: Save chats (Local only for now)
+  // 채팅 데이터 로컬 저장소 동기화
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(chatRooms));
   }, [chatRooms]);
 
+  /**
+   * 채팅방 생성 또는 기존 채팅방 이동
+   */
   const handleCreateChatRoom = (participants: User[], name?: string) => {
     if (!currentUser) return;
     
-    // Check if 1:1 room exists
+    // 1:1 채팅방 중복 확인
     if (participants.length === 2) {
       const otherUser = participants.find(p => p.id !== currentUser.id);
       const existingRoom = chatRooms.find(r => 
@@ -80,6 +89,9 @@ const App: React.FC = () => {
     setActiveTab('chat');
   };
 
+  /**
+   * 채팅 메시지 전송
+   */
   const handleSendMessage = (roomId: string, content: string, type: 'text' | 'system' | 'file' | 'image', attachment?: Attachment) => {
     if (!currentUser) return;
 
@@ -98,348 +110,129 @@ const App: React.FC = () => {
         ...room,
         messages: [...room.messages, newMessage],
         lastMessage: content,
-        lastMessageTime: newMessage.timestamp
+        lastMessageTime: new Date().toISOString()
       };
     }));
   };
 
-  const handleInviteUser = (roomId: string, user: User) => {
-    setChatRooms(prev => prev.map(room => {
-      if (room.id !== roomId) return room;
-      
-      const updatedParticipants = [...room.participants, user];
-      const systemMessage: any = {
-        id: `sys-${Date.now()}`,
-        senderId: 'system',
-        content: `${user.name}님이 초대되었습니다.`,
-        timestamp: new Date().toISOString(),
-        type: 'system'
-      };
-
-      // Rename room if it's becoming a group chat
-      let newName = room.name;
-      if (updatedParticipants.length > 2 && !room.name.includes('외')) {
-        newName = `${updatedParticipants[0].name} 외 ${updatedParticipants.length - 1}명`;
-      }
-
-      return {
-        ...room,
-        participants: updatedParticipants,
-        name: newName,
-        messages: [...room.messages, systemMessage]
-      };
-    }));
-  };
-
+  /**
+   * 로그인 처리
+   */
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     setActiveTab('dashboard');
-    setIsProfileMenuOpen(false);
   };
 
+  /**
+   * 로그아웃 처리
+   */
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setActiveTab('dashboard');
+  };
+
+  /**
+   * 회원가입 처리
+   */
   const handleSignUp = async (newUser: User) => {
     await saveUser(newUser);
-    setMockUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
-    setActiveTab('dashboard');
-    setIsProfileMenuOpen(false);
+    const users = await getUsers();
+    setMockUsers(users);
+    handleLogin(newUser);
   };
 
-  const handleLogout = () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
-      setCurrentUser(null);
-      setActiveTab('dashboard');
-      setIsProfileMenuOpen(false);
-      setPreSelectedTemplateId(null);
-    }
-  };
-
-  const handleRecommendationClick = (templateId: string) => {
-    setPreSelectedTemplateId(templateId);
-    setActiveTab('draft');
-  };
-
-  const handleNewRequest = async (
-    title: string, 
-    content: string, 
-    templateId: string, 
-    lineItems: { user: User, role: ApprovalRole }[], 
-    references: User[],
-    attachments: Attachment[]
-  ) => {
-    if (!currentUser) return;
-
-    const approvalLine: ApprovalLine[] = lineItems.map((item, idx) => ({
-      id: `al-${Date.now()}-${item.user.id}-${idx}`,
-      user: item.user,
-      status: 'PENDING',
-      role: item.role
-    }));
-
-    const newDoc: ApprovalDocument = {
-      id: `APP-${Math.floor(Math.random() * 100000)}`,
-      title,
-      content,
-      templateId,
-      author: currentUser,
-      status: ApprovalStatus.PENDING,
-      createdAt: new Date().toISOString(),
-      approvalLine,
-      referenceUsers: references,
-      attachments: attachments
-    };
-    
-    const success = await createDocument(newDoc);
+  /**
+   * 결재 문서 생성 (기안)
+   */
+  const handleCreateDocument = async (doc: ApprovalDocument) => {
+    const success = await createDocument(doc);
     if (success) {
-      setDocuments(prev => [newDoc, ...prev]);
+      const docs = await getDocuments();
+      setDocuments(docs);
       setActiveTab('documents');
-      setActiveDocTab('drafts');
-      setPreSelectedTemplateId(null);
-    } else {
-      alert('문서 저장에 실패했습니다.');
+      setActiveDocTab('drafts'); // 내가 쓴 문서함으로 이동
     }
   };
 
-  const handleProcessApproval = async (docId: string, status: 'APPROVED' | 'REJECTED') => {
-    if (!currentUser) return;
-
-    // Optimistic UI update
-    let updatedApprovalLine: ApprovalLine[] = [];
-    let newDocStatus = '';
-
-    setDocuments(prevDocs => prevDocs.map(doc => {
-      if (doc.id !== docId) return doc;
-
-      const updatedLine = [...doc.approvalLine];
-      const userStepIndex = updatedLine.findIndex(line => line.user.id === currentUser.id && line.status === 'PENDING');
-      
-      if (userStepIndex === -1) return doc;
-
-      updatedLine[userStepIndex] = {
-        ...updatedLine[userStepIndex],
-        status: status,
-        processedAt: new Date().toISOString()
-      };
-
-      newDocStatus = doc.status;
-      if (status === 'REJECTED') {
-        newDocStatus = ApprovalStatus.REJECTED;
-      } else {
-        const isLastStep = updatedLine.every(line => line.status === 'APPROVED');
-        if (isLastStep) {
-          newDocStatus = ApprovalStatus.APPROVED;
-        }
-      }
-
-      updatedApprovalLine = updatedLine;
-      const updatedDoc = { ...doc, approvalLine: updatedLine, status: newDocStatus as ApprovalStatus };
-      if (selectedDoc?.id === docId) {
-        setSelectedDoc(updatedDoc);
-      }
-      return updatedDoc;
-    }));
-
-    if (updatedApprovalLine.length > 0) {
-      await updateDocumentStatus(docId, newDocStatus, updatedApprovalLine);
-    }
-  };
-
+  /**
+   * 사용자 정보 업데이트
+   */
   const handleUpdateUser = async (updatedUser: User) => {
     await saveUser(updatedUser);
-    setMockUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    const users = await getUsers();
+    setMockUsers(users);
+    
+    // 현재 로그인한 사용자 정보도 업데이트
+    if (currentUser && currentUser.id === updatedUser.id) {
+      setCurrentUser(updatedUser);
+    }
   };
 
+  /**
+   * 사용자 삭제
+   */
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      await deleteUser(userId);
-      setMockUsers(prev => prev.filter(u => u.id !== userId));
-      if (currentUser?.id === userId) {
-        handleLogout();
-      }
-    }
+    await deleteUser(userId);
+    const users = await getUsers();
+    setMockUsers(users);
   };
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <Dashboard 
-            documents={documents} 
-            onSelectDoc={setSelectedDoc} 
-            currentUser={currentUser!}
-            onRecommendationClick={handleRecommendationClick}
-          />
-        );
-      case 'draft':
-        return (
-          <DraftView 
-            onSubmit={handleNewRequest} 
-            users={mockUsers} 
-            preSelectedTemplateId={preSelectedTemplateId} 
-          />
-        );
-      case 'staff':
-        return (
-          <StaffStatus 
-            users={mockUsers} 
-            onUpdateUser={handleUpdateUser}
-            onDeleteUser={handleDeleteUser}
-            currentUser={currentUser!}
-            onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
-          />
-        );
-      case 'admin':
-        return <AdminUserManagement />;
-      case 'chat':
-        return (
-          <div className="flex h-full bg-white border-l border-slate-200 overflow-hidden shadow-sm">
-            <ChatRoomList 
-              currentUser={currentUser!} 
-              users={mockUsers}
-              chatRooms={chatRooms.filter(r => r.participants.some(p => p.id === currentUser?.id))}
-              onSelectRoom={setActiveChatRoomId}
-              onCreateRoom={handleCreateChatRoom}
-              activeRoomId={activeChatRoomId || undefined}
-            />
-            {activeChatRoomId ? (
-              <ChatRoomDetail 
-                currentUser={currentUser!}
-                users={mockUsers}
-                room={chatRooms.find(r => r.id === activeChatRoomId)!}
-                onSendMessage={(roomId, content, type, attachment) => handleSendMessage(roomId, content, type, attachment)}
-                onInviteUser={handleInviteUser}
-                onClose={() => setActiveChatRoomId(null)}
-              />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-                <span className="text-6xl mb-4">💬</span>
-                <p>채팅방을 선택하거나 새로운 대화를 시작하세요.</p>
-              </div>
-            )}
-          </div>
-        );
-      case 'documents':
-        let filteredDocs: ApprovalDocument[] = [];
-        let titleText = '';
-
-        if (activeDocTab === 'approvals') {
-          titleText = '결재문서함';
-          filteredDocs = documents.filter(doc => 
-            doc.approvalLine.some(line => line.user.id === currentUser?.id)
-          );
-        } else if (activeDocTab === 'references') {
-          titleText = '참조문서함';
-          filteredDocs = documents.filter(d => 
-            d.referenceUsers.some(u => u.id === currentUser?.id)
-          );
-        } else if (activeDocTab === 'all') {
-          titleText = '전체 문서 관리';
-          filteredDocs = documents;
-        } else {
-          titleText = '기안문서함';
-          filteredDocs = documents.filter(d => d.author.id === currentUser?.id);
-        }
-
-        return (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm min-h-[500px]">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-              <h2 className="text-2xl font-bold text-slate-800">{titleText}</h2>
-              <div className="flex p-1 bg-slate-100 rounded-xl">
-                <button 
-                  onClick={() => setActiveDocTab('drafts')}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                    activeDocTab === 'drafts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  📤 기안문서함
-                </button>
-                <button 
-                  onClick={() => setActiveDocTab('approvals')}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                    activeDocTab === 'approvals' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  📥 결재문서함
-                </button>
-                <button 
-                  onClick={() => setActiveDocTab('references')}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                    activeDocTab === 'references' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  👀 참조문서함
-                </button>
-                {currentUser?.role === 'ADMIN' && (
-                  <button 
-                    onClick={() => setActiveDocTab('all')}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                      activeDocTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    🔐 전체 문서
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {filteredDocs.map((doc) => (
-                <div 
-                  key={doc.id} 
-                  onClick={() => setSelectedDoc(doc)}
-                  className={`py-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer px-4 rounded-xl transition-all hover:pl-6 mb-2 ${
-                    // Highlight if it's my turn to approve
-                    activeDocTab === 'approvals' && doc.approvalLine.find(l => l.status === 'PENDING')?.user.id === currentUser?.id 
-                      ? 'border-l-4 border-l-blue-500 bg-blue-50/30' 
-                      : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-xl shadow-sm border border-slate-100">
-                      {TEMPLATES.find(t => t.id === doc.templateId)?.icon || '📄'}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">{doc.title}</p>
-                      <p className="text-sm text-slate-500">{new Date(doc.createdAt).toLocaleDateString()} · 기안자: {doc.author.name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {/* Show "Waiting" badge only in My Approvals if it's my turn */}
-                    {activeDocTab === 'approvals' && doc.approvalLine.find(l => l.status === 'PENDING')?.user.id === currentUser?.id && (
-                       <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-[10px] font-bold animate-pulse">
-                        결재 대기
-                      </span>
-                    )}
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                      doc.status === ApprovalStatus.APPROVED ? 'bg-green-100 text-green-700' :
-                      doc.status === ApprovalStatus.REJECTED ? 'bg-red-100 text-red-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {doc.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {filteredDocs.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                  <span className="text-4xl mb-4">📂</span>
-                  <p>문서가 없습니다.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      default:
-        return <div>준비 중입니다.</div>;
-    }
-  };
-
+  // 로그인 전이면 인증 화면 표시
   if (!currentUser) {
-    return <AuthScreen onLogin={handleLogin} onSignUp={handleSignUp} mockUsers={mockUsers} />;
+    return <AuthScreen onLogin={handleLogin} mockUsers={mockUsers} onSignUp={handleSignUp} />;
+  }
+
+  // 문서 상세 보기 모드
+  if (selectedDoc) {
+    return (
+      <ApprovalDetail 
+        document={selectedDoc} 
+        currentUser={currentUser}
+        onClose={() => setSelectedDoc(null)}
+        onApprove={async (docId, comment) => {
+          // 승인 처리 로직
+          const doc = documents.find(d => d.id === docId);
+          if (!doc) return;
+
+          const updatedLine = doc.approvalLine.map(line => {
+            if (line.user.id === currentUser.id && line.status === 'PENDING') {
+              return { ...line, status: 'APPROVED' as const, processedAt: new Date().toISOString(), comment };
+            }
+            return line;
+          });
+
+          // 모든 결재자가 승인했는지 확인
+          const allApproved = updatedLine.every(line => line.status === 'APPROVED');
+          const newStatus = allApproved ? ApprovalStatus.APPROVED : ApprovalStatus.PENDING;
+
+          await updateDocumentStatus(docId, newStatus, updatedLine);
+          const docs = await getDocuments();
+          setDocuments(docs);
+          setSelectedDoc(null);
+        }}
+        onReject={async (docId, comment) => {
+          // 반려 처리 로직
+          const doc = documents.find(d => d.id === docId);
+          if (!doc) return;
+
+          const updatedLine = doc.approvalLine.map(line => {
+            if (line.user.id === currentUser.id && line.status === 'PENDING') {
+              return { ...line, status: 'REJECTED' as const, processedAt: new Date().toISOString(), comment };
+            }
+            return line;
+          });
+
+          await updateDocumentStatus(docId, ApprovalStatus.REJECTED, updatedLine);
+          const docs = await getDocuments();
+          setDocuments(docs);
+          setSelectedDoc(null);
+        }}
+      />
+    );
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans antialiased text-slate-900 relative">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={(tab) => {
@@ -450,80 +243,253 @@ const App: React.FC = () => {
         currentUser={currentUser}
       />
       
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-end z-30 flex-shrink-0">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
-              <span className="text-lg">🔔</span>
-              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {documents.filter(doc => {
-                  const pendingStep = doc.approvalLine.find(l => l.status === 'PENDING');
-                  return pendingStep?.user.id === currentUser?.id;
-                }).length}
-              </span>
-            </div>
-            
-            <div className="h-8 w-[1px] bg-slate-200" />
-            
+      <main className="flex-1 p-8 overflow-y-auto h-screen">
+        <header className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">
+              {activeTab === 'dashboard' && '대시보드'}
+              {activeTab === 'chat' && '채팅'}
+              {activeTab === 'draft' && '전자결재 작성'}
+              {activeTab === 'documents' && '전자결재 문서함'}
+              {activeTab === 'staff' && '직원현황'}
+              {activeTab === 'admin' && '관리자 설정'}
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">
+              오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
             <div className="relative">
-              <div 
+               <button className="p-2 bg-white rounded-full text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors relative">
+                 🔔
+                 <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+               </button>
+            </div>
+            <div className="relative">
+              <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-3 cursor-pointer group hover:bg-slate-100/50 p-1 pr-3 rounded-full transition-all"
+                className="flex items-center gap-3 bg-white pl-2 pr-4 py-1.5 rounded-full border border-slate-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md"
               >
-                <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">{currentUser.name} {currentUser.position}</p>
-                  <p className="text-[10px] text-slate-500 font-medium">{currentUser.department}</p>
-                </div>
                 <img 
                   src={currentUser.avatar} 
                   alt="Profile" 
-                  className="w-10 h-10 rounded-full border-2 border-white shadow-md group-hover:scale-105 transition-transform"
+                  className="w-8 h-8 rounded-full bg-slate-200 object-cover"
                 />
-              </div>
-
+                <div className="text-left">
+                  <div className="text-xs font-bold text-slate-700">{currentUser.name}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">{currentUser.department}</div>
+                </div>
+                <span className="text-slate-300 text-xs">▼</span>
+              </button>
+              
               {isProfileMenuOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-black/5" 
-                    onClick={() => setIsProfileMenuOpen(false)}
-                  />
-                  <div className="absolute top-full right-0 mt-3 w-64 bg-white border border-slate-200 shadow-2xl rounded-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                    <div className="px-4 py-3 border-b border-slate-100">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">Signed in as</p>
-                      <p className="text-sm font-bold text-slate-900">{currentUser.name}</p>
-                      <p className="text-[10px] text-slate-500">{currentUser.phone}</p>
-                    </div>
-                    <div className="py-2">
-                      <button 
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors text-left"
-                      >
-                        <span className="text-lg">🚪</span>
-                        시스템 로그아웃
-                      </button>
-                    </div>
-                  </div>
-                </>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <button className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">내 정보 수정</button>
+                  <button className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">환경설정</button>
+                  <div className="h-px bg-slate-100 my-1"></div>
+                  <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 font-bold">로그아웃</button>
+                </div>
               )}
             </div>
           </div>
         </header>
 
-        <main className={`flex-1 overflow-y-auto ${activeTab === 'chat' ? 'p-0 overflow-hidden' : 'p-8'}`}>
-          <div className={`${activeTab === 'chat' ? 'h-full' : 'max-w-7xl mx-auto'}`}>
-            {renderContent()}
-          </div>
-        </main>
-      </div>
+        {/* 탭별 컨텐츠 렌더링 */}
+        {activeTab === 'dashboard' && (
+          <Dashboard 
+            currentUser={currentUser}
+            documents={documents}
+            onNavigate={(tab) => setActiveTab(tab)}
+            onSelectTemplate={(templateId) => {
+              setPreSelectedTemplateId(templateId);
+              setActiveTab('draft');
+            }}
+          />
+        )}
 
-      {selectedDoc && (
-        <ApprovalDetail 
-          doc={selectedDoc} 
-          currentUser={currentUser}
-          onProcessApproval={handleProcessApproval}
-          onClose={() => setSelectedDoc(null)} 
-        />
-      )}
+        {activeTab === 'draft' && (
+          <DraftView 
+            currentUser={currentUser}
+            templates={TEMPLATES}
+            users={mockUsers}
+            onCreateDocument={handleCreateDocument}
+            preSelectedTemplateId={preSelectedTemplateId}
+          />
+        )}
+
+        {activeTab === 'documents' && (
+          <div className="space-y-6">
+            {/* 문서함 탭 */}
+            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-fit">
+              <button 
+                onClick={() => setActiveDocTab('approvals')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                  activeDocTab === 'approvals' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                📥 결재대기문서
+              </button>
+              <button 
+                onClick={() => setActiveDocTab('drafts')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                  activeDocTab === 'drafts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                📤 기안문서함
+              </button>
+              <button 
+                onClick={() => setActiveDocTab('references')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                  activeDocTab === 'references' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                👀 참조문서함
+              </button>
+              {currentUser?.role === 'ADMIN' && (
+                <button 
+                  onClick={() => setActiveDocTab('all')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                    activeDocTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  🔐 전체 문서
+                </button>
+              )}
+            </div>
+
+            {/* 문서 목록 */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-bold">
+                    <th className="p-4 w-20 text-center">상태</th>
+                    <th className="p-4">제목</th>
+                    <th className="p-4 w-32">기안자</th>
+                    <th className="p-4 w-32">기안일</th>
+                    <th className="p-4 w-24 text-center">결재진행</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(() => {
+                    let titleText = '';
+                    let filteredDocs = [];
+
+                    if (activeDocTab === 'approvals') {
+                      titleText = '결재문서함';
+                      filteredDocs = documents.filter(doc => 
+                        doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                      );
+                    } else if (activeDocTab === 'references') {
+                      titleText = '참조문서함';
+                      filteredDocs = documents.filter(d => 
+                        d.referenceUsers.some(u => u.id === currentUser?.id)
+                      );
+                    } else if (activeDocTab === 'all') {
+                      titleText = '전체 문서 관리';
+                      filteredDocs = documents;
+                    } else {
+                      titleText = '기안문서함';
+                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id);
+                    }
+
+                    if (filteredDocs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} className="p-12 text-center text-slate-400 font-medium">
+                            문서가 없습니다.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredDocs.map(doc => (
+                      <tr 
+                        key={doc.id} 
+                        onClick={() => setSelectedDoc(doc)}
+                        className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                      >
+                        <td className="p-4 text-center">
+                          <span className={`
+                            px-2 py-1 rounded-md text-[10px] font-bold border
+                            ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
+                              doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                              'bg-yellow-50 text-yellow-600 border-yellow-100'}
+                          `}>
+                            {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : '진행중'}
+                          </span>
+                        </td>
+                        <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
+                          {doc.title}
+                        </td>
+                        <td className="p-4 text-sm text-slate-600">
+                          {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
+                        </td>
+                        <td className="p-4 text-sm text-slate-500">
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="flex justify-center -space-x-2">
+                            {doc.approvalLine.map((line, i) => (
+                              <div 
+                                key={i} 
+                                className={`
+                                  w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold
+                                  ${line.status === 'APPROVED' ? 'bg-green-500' : line.status === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'}
+                                `}
+                                title={`${line.user.name} (${line.status})`}
+                              >
+                                {line.user.name[0]}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'staff' && (
+          <StaffStatus 
+            users={mockUsers} 
+            onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
+            currentUser={currentUser!}
+            onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
+          />
+        )}
+        
+        {activeTab === 'chat' && (
+          <div className="h-full flex gap-6">
+            <ChatRoomList 
+              currentUser={currentUser!}
+              chatRooms={chatRooms}
+              activeRoomId={activeChatRoomId}
+              onSelectRoom={setActiveChatRoomId}
+              users={mockUsers}
+              onCreateRoom={handleCreateChatRoom}
+            />
+            {activeChatRoomId ? (
+              <ChatRoomDetail
+                currentUser={currentUser!}
+                chatRoom={chatRooms.find(r => r.id === activeChatRoomId)!}
+                onSendMessage={handleSendMessage}
+              />
+            ) : (
+              <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
+                채팅방을 선택하세요
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminUserManagement />
+        )}
+      </main>
     </div>
   );
 };

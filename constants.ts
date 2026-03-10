@@ -1,6 +1,9 @@
-
 import { ApprovalStatus, User, DocumentTemplate, ApprovalDocument } from './types';
 
+/**
+ * 데모용 사용자 데이터 목록
+ * - 초기 로컬 저장소 데이터가 없을 때 사용됩니다.
+ */
 export const MOCK_USERS: User[] = [
   { id: 'u1', name: '김철수', position: '과장', department: '기획부', phone: '010-1234-5678', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u1', role: 'USER' },
   { id: 'u2', name: '박민준', position: '부장', department: '기획부', phone: '010-1111-2222', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u2', role: 'USER' },
@@ -11,6 +14,9 @@ export const MOCK_USERS: User[] = [
   { id: 'admin', name: '관리자', position: '관리자', department: '관리팀', phone: 'admin', password: 'admin', avatar: 'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff', role: 'ADMIN' },
 ];
 
+/**
+ * 결재 문서 템플릿 목록
+ */
 export const TEMPLATES: DocumentTemplate[] = [
   { id: 't1', name: '지출결의서', description: '회사 비용 집행을 위한 결의서', icon: '💰' },
   { id: 't2', name: '휴가신청서', description: '연차, 반차 등 휴가 사용 신청', icon: '🏖️' },
@@ -18,6 +24,9 @@ export const TEMPLATES: DocumentTemplate[] = [
   { id: 't4', name: '품의서', description: '일반적인 업무 진행 승인 요청', icon: '📄' }
 ];
 
+/**
+ * 데모용 결재 문서 데이터
+ */
 export const MOCK_DOCUMENTS: ApprovalDocument[] = [
   {
     id: 'doc-101',

@@ -2,14 +2,31 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { User, ApprovalDocument, ApprovalStatus, ApprovalLine, Attachment, ChatRoom, ChatMessage } from '../types';
 import { MOCK_USERS, MOCK_DOCUMENTS } from '../constants';
 
-// --- Users ---
+// --- Users (사용자 관리) ---
 
+/**
+ * 모든 사용자 목록 조회
+ * - Supabase가 설정되어 있지 않으면 로컬 저장소(localStorage)에서 조회합니다.
+ * - 데이터가 없거나 일부 데모 사용자가 누락된 경우 자동으로 복구합니다.
+ */
 export const getUsers = async (): Promise<User[]> => {
   if (!isSupabaseConfigured()) {
     const saved = localStorage.getItem('smartapprove_users');
-    let users = saved ? JSON.parse(saved) : MOCK_USERS;
+    let users = saved ? JSON.parse(saved) : [...MOCK_USERS];
 
-    // Migration: Ensure all users have a role
+    // MOCK_USERS가 존재하는지 확인 (누락 시 복구)
+    // 예: 'u1' (김철수) 사용자가 없으면 데모 데이터가 손실된 것으로 간주하고 복구 시도
+    const hasMockUser = users.some((u: any) => u.id === 'u1');
+    if (!hasMockUser) {
+      const existingIds = new Set(users.map((u: any) => u.id));
+      const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+      users = [...users, ...missingMocks];
+      
+      // 복구된 데이터 저장
+      localStorage.setItem('smartapprove_users', JSON.stringify(users));
+    }
+
+    // 마이그레이션: 모든 사용자가 role 속성을 가지도록 보장
     users = users.map((u: any) => ({
       ...u,
       role: u.role || (u.id === 'admin' ? 'ADMIN' : 'USER')
@@ -21,11 +38,14 @@ export const getUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase!.from('users').select('*');
   if (error) {
     console.error('Error fetching users:', error);
-    return MOCK_USERS; // Fallback
+    return MOCK_USERS; // 에러 발생 시 폴백 데이터 반환
   }
   return data || [];
 };
 
+/**
+ * 사용자 정보 저장 (생성 및 수정)
+ */
 export const saveUser = async (user: User): Promise<User | null> => {
   if (!isSupabaseConfigured()) {
     const users = await getUsers();
@@ -51,6 +71,9 @@ export const saveUser = async (user: User): Promise<User | null> => {
   return data;
 };
 
+/**
+ * 사용자 삭제
+ */
 export const deleteUser = async (userId: string): Promise<boolean> => {
   if (!isSupabaseConfigured()) {
     const users = await getUsers();
@@ -63,17 +86,27 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
   return !error;
 };
 
-// --- Documents ---
+/**
+ * 데이터를 데모 상태로 초기화 (로컬 저장소 전용)
+ */
+export const resetToMockData = async (): Promise<void> => {
+  if (!isSupabaseConfigured()) {
+    localStorage.setItem('smartapprove_users', JSON.stringify(MOCK_USERS));
+  }
+};
 
+// --- Documents (문서 관리) ---
+
+/**
+ * 모든 결재 문서 조회
+ */
 export const getDocuments = async (): Promise<ApprovalDocument[]> => {
   if (!isSupabaseConfigured()) {
     const saved = localStorage.getItem('smartapprove_docs');
     return saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
   }
 
-  // Fetch documents with relations
-  // This is a complex query, simplifying for now by fetching main table
-  // In a real app, you'd use a join or multiple queries
+  // 문서와 관련된 정보(작성자, 결재선, 참조자, 첨부파일)를 함께 조회
   const { data: docs, error } = await supabase!.from('documents').select(`
     *,
     author:users!author_id(*),
@@ -87,7 +120,7 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
     return [];
   }
 
-  // Transform data to match ApprovalDocument type
+  // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
   return docs.map((d: any) => ({
     ...d,
     author: d.author,
@@ -100,6 +133,9 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
   }));
 };
 
+/**
+ * 새 문서 생성
+ */
 export const createDocument = async (doc: ApprovalDocument): Promise<boolean> => {
   if (!isSupabaseConfigured()) {
     const docs = await getDocuments();
@@ -108,7 +144,7 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
     return true;
   }
 
-  // 1. Insert Document
+  // 1. 문서 기본 정보 저장
   const { error: docError } = await supabase!.from('documents').insert({
     id: doc.id,
     title: doc.title,
@@ -120,7 +156,7 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
   });
   if (docError) return false;
 
-  // 2. Insert Approval Lines
+  // 2. 결재선 정보 저장
   const lines = doc.approvalLine.map((l, index) => ({
     id: l.id,
     document_id: doc.id,
@@ -131,15 +167,14 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
   }));
   await supabase!.from('approval_lines').insert(lines);
 
-  // 3. Insert References
+  // 3. 참조자 정보 저장
   const refs = doc.referenceUsers.map(u => ({
     document_id: doc.id,
     user_id: u.id
   }));
   if (refs.length > 0) await supabase!.from('document_references').insert(refs);
 
-  // 4. Insert Attachments
-  // Note: Storing base64 in DB is not optimal for large files, but consistent with current implementation
+  // 4. 첨부파일 정보 저장
   const atts = doc.attachments?.map(a => ({
     id: a.id,
     document_id: doc.id,
@@ -153,6 +188,9 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
   return true;
 };
 
+/**
+ * 문서 상태 및 결재선 업데이트 (승인/반려 처리 시)
+ */
 export const updateDocumentStatus = async (docId: string, status: string, approvalLine: ApprovalLine[]): Promise<boolean> => {
   if (!isSupabaseConfigured()) {
     const docs = await getDocuments();
@@ -170,10 +208,10 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
     return true;
   }
 
-  // Update document status
+  // 문서 상태 업데이트
   await supabase!.from('documents').update({ status }).eq('id', docId);
 
-  // Update approval lines
+  // 결재선 상태 업데이트
   for (const line of approvalLine) {
     await supabase!.from('approval_lines').update({
       status: line.status,
@@ -183,7 +221,3 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
 
   return true;
 };
-
-// --- Chat ---
-// Chat implementation would be similar, but for brevity let's stick to LocalStorage if not implemented
-// or implement basic structure

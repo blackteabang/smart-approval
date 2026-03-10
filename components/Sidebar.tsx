@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TabType, User } from '../types';
 
@@ -9,7 +8,13 @@ interface SidebarProps {
   currentUser: User | null;
 }
 
+/**
+ * 사이드바 컴포넌트
+ * - 애플리케이션의 주요 네비게이션 메뉴를 제공합니다.
+ * - 사용자 권한(ADMIN)에 따라 관리자 메뉴를 동적으로 표시합니다.
+ */
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, currentUser }) => {
+  // 기본 메뉴 아이템
   const menuItems: { id: TabType; label: string; icon: string }[] = [
     { id: 'dashboard', label: '대시보드', icon: '📊' },
     { id: 'chat', label: '채팅', icon: '💬' },
@@ -18,6 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, cu
     { id: 'staff', label: '직원현황', icon: '👥' },
   ];
 
+  // 관리자 권한일 경우 '관리자 설정' 메뉴 추가
   if (currentUser?.role === 'ADMIN') {
     menuItems.push({ id: 'admin', label: '관리자 설정', icon: '⚙️' });
   }
@@ -34,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, cu
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => setActiveTab(item.id as TabType)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
               activeTab === item.id 
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 translate-x-1' 

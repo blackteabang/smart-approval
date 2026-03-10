@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -8,8 +7,14 @@ interface AuthScreenProps {
   onSignUp: (newUser: User) => void;
 }
 
+/**
+ * 인증 화면 컴포넌트
+ * - 로그인 및 회원가입 기능을 제공합니다.
+ * - 로그인: 휴대폰 번호(ID)와 비밀번호로 인증
+ * - 회원가입: 신규 사용자 정보 입력 및 중복 확인
+ */
 const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(true); // 로그인/회원가입 모드 전환
   const [formData, setFormData] = useState({
     name: '',
     position: '사원',
@@ -24,11 +29,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
     setError('');
   };
 
+  /**
+   * 인증 처리 핸들러 (로그인/회원가입 분기)
+   */
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isLogin) {
-      // Normalize phone number (remove hyphens) - but keep 'admin' as is
+      // 로그인 처리
+      // 휴대폰 번호 정규화 (하이픈 제거), 단 'admin' 계정은 예외 처리
       const inputPhone = formData.phone === 'admin' ? 'admin' : formData.phone.replace(/-/g, '');
       
       const user = mockUsers.find(u => {
@@ -42,13 +51,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
         setError('아이디(연락처) 또는 비밀번호가 올바르지 않습니다.');
       }
     } else {
-      // Basic validation for sign up
+      // 회원가입 처리
+      // 기본 유효성 검사
       if (!formData.name || !formData.phone || !formData.password) {
         setError('모든 필드를 입력해주세요.');
         return;
       }
       
-      // Check for duplicate phone (normalized)
+      // 중복 휴대폰 번호 확인 (정규화 후 비교)
       const inputPhone = formData.phone.replace(/-/g, '');
       if (mockUsers.some(u => u.phone.replace(/-/g, '') === inputPhone)) {
         setError('이미 등록된 휴대폰 번호입니다.');
@@ -60,10 +70,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
         name: formData.name,
         position: formData.position,
         department: formData.department,
-        phone: formData.phone, // Store as entered, or normalize if preferred
+        phone: formData.phone, // 입력된 형식 그대로 저장 (또는 정규화하여 저장 가능)
         password: formData.password,
         avatar: `https://i.pravatar.cc/150?u=${Date.now()}`,
-        role: 'USER'
+        role: 'USER' // 기본 권한은 일반 사용자
       };
       onSignUp(newUser);
     }
@@ -98,26 +108,37 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
 
           <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+              <>
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">이름</label>
-                  <input 
+                  <label className="block text-sm font-bold text-slate-700 mb-1">이름</label>
+                  <input
+                    type="text"
                     name="name"
-                    type="text" 
                     value={formData.name}
                     onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                     placeholder="홍길동"
-                    className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase ml-1">직급</label>
-                    <select 
+                    <label className="block text-sm font-bold text-slate-700 mb-1">부서</label>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="영업부"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">직급</label>
+                    <select
                       name="position"
                       value={formData.position}
                       onChange={handleChange}
-                      className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm appearance-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
                     >
                       <option>사원</option>
                       <option>대리</option>
@@ -125,77 +146,60 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
                       <option>차장</option>
                       <option>부장</option>
                       <option>이사</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase ml-1">부서</label>
-                    <select 
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
-                      className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm appearance-none"
-                    >
-                      <option>기획부</option>
-                      <option>인사팀</option>
-                      <option>마케팅팀</option>
-                      <option>영업부</option>
-                      <option>IT지원팀</option>
+                      <option>상무</option>
+                      <option>대표이사</option>
                     </select>
                   </div>
                 </div>
-              </div>
+              </>
             )}
 
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">휴대폰 번호</label>
-              <input 
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                {isLogin ? '아이디 (연락처)' : '연락처'}
+              </label>
+              <input
+                type="text"
                 name="phone"
-                type="tel" 
                 value={formData.phone}
                 onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 placeholder="010-0000-0000"
-                className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">비밀번호</label>
-              <input 
+              <label className="block text-sm font-bold text-slate-700 mb-1">비밀번호</label>
+              <input
+                type="password"
                 name="password"
-                type="password" 
                 value={formData.password}
                 onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 placeholder="••••••••"
-                className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
               />
             </div>
 
             {error && (
-              <p className="text-xs font-medium text-red-500 mt-2 text-center animate-pulse">
-                {error}
+              <p className="text-red-500 text-sm font-bold animate-pulse">
+                ⚠️ {error}
               </p>
             )}
 
-            <button 
+            <button
               type="submit"
-              className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-[0.98] mt-4"
+              className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-xl hover:-translate-y-0.5 transition-all mt-4"
             >
               {isLogin ? '로그인하기' : '회원가입 완료'}
             </button>
           </form>
-
-          {isLogin && (
-            <div className="mt-6 text-center">
-              <button className="text-xs text-slate-400 hover:text-blue-500 transition-colors">
-                비밀번호를 잊으셨나요?
-              </button>
-            </div>
-          )}
+          
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+               Smart Approval System © 2024 리맨전자결재
+             </p>
+          </div>
         </div>
-
-        <p className="text-center mt-8 text-xs text-slate-400">
-          © 2024 리맨전자결재 Inc. 모든 권리 보유.
-        </p>
       </div>
     </div>
   );
