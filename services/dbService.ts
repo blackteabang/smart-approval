@@ -10,35 +10,33 @@ import { MOCK_USERS, MOCK_DOCUMENTS } from '../constants';
  * - 데이터가 없거나 일부 데모 사용자가 누락된 경우 자동으로 복구합니다.
  */
 export const getUsers = async (): Promise<User[]> => {
-  if (!isSupabaseConfigured()) {
+  // 로컬 스토리지에서 데이터를 가져오는 헬퍼 함수
+  const getLocalUsers = () => {
     const saved = localStorage.getItem('smartapprove_users');
     let users = saved ? JSON.parse(saved) : [...MOCK_USERS];
 
-    // 데이터가 없거나(0명) 관리자만 있는 경우, 또는 데모 데이터(u1)가 누락된 경우 복구
     const shouldRestoreMocks = users.length <= 1 || !users.some((u: any) => u.id === 'u1');
-    
     if (shouldRestoreMocks) {
       const existingIds = new Set(users.map((u: any) => u.id));
       const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
       users = [...users, ...missingMocks];
-      
-      // 복구된 데이터 저장
       localStorage.setItem('smartapprove_users', JSON.stringify(users));
     }
-
-    // 마이그레이션: 모든 사용자가 role 속성을 가지도록 보장
-    users = users.map((u: any) => ({
+    
+    return users.map((u: any) => ({
       ...u,
       role: u.role || (u.id === 'admin' ? 'ADMIN' : 'USER')
     }));
+  };
 
-    return users;
+  if (!isSupabaseConfigured()) {
+    return getLocalUsers();
   }
   
   const { data, error } = await supabase!.from('users').select('*');
   if (error) {
-    console.error('Error fetching users:', error);
-    return MOCK_USERS; // 에러 발생 시 폴백 데이터 반환
+    console.error('Error fetching users from Supabase, falling back to local storage:', error);
+    return getLocalUsers();
   }
   return data || [];
 };
@@ -47,26 +45,35 @@ export const getUsers = async (): Promise<User[]> => {
  * 사용자 정보 저장 (생성 및 수정)
  */
 export const saveUser = async (user: User): Promise<User | null> => {
-  if (!isSupabaseConfigured()) {
-    const users = await getUsers();
-    const existingIndex = users.findIndex(u => u.id === user.id);
+  // 로컬 스토리지에 저장하는 헬퍼 함수
+  const saveLocalUser = async (userToSave: User) => {
+    const users = await getUsers(); // 이 시점에서는 로컬/DB 상관없이 가져옴 (에러 시 로컬)
     
-    let updatedUsers;
+    // 만약 getUsers가 DB에서 가져왔다면 로컬엔 없을 수 있음. 
+    // 하지만 여기선 '저장 실패 시 로컬로 fallback' 하는 상황이므로
+    // 로컬 스토리지 기준으로 병합해야 함.
+    // 따라서 로컬 스토리지 직접 조회 필요
+    const saved = localStorage.getItem('smartapprove_users');
+    let localUsers = saved ? JSON.parse(saved) : [...MOCK_USERS];
+    
+    const existingIndex = localUsers.findIndex((u: any) => u.id === userToSave.id);
     if (existingIndex >= 0) {
-      updatedUsers = [...users];
-      updatedUsers[existingIndex] = user;
+      localUsers[existingIndex] = userToSave;
     } else {
-      updatedUsers = [...users, user];
+      localUsers.push(userToSave);
     }
-    
-    localStorage.setItem('smartapprove_users', JSON.stringify(updatedUsers));
-    return user;
+    localStorage.setItem('smartapprove_users', JSON.stringify(localUsers));
+    return userToSave;
+  };
+
+  if (!isSupabaseConfigured()) {
+    return saveLocalUser(user);
   }
 
   const { data, error } = await supabase!.from('users').upsert(user).select().single();
   if (error) {
-    console.error('Error saving user:', error);
-    return null;
+    console.error('Error saving user to Supabase, falling back to local storage:', error);
+    return saveLocalUser(user);
   }
   return data;
 };
