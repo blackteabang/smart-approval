@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { TabType } from '../types';
+import { TabType, User } from '../types';
 
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   onLogout: () => void;
+  currentUser: User | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, currentUser }) => {
   const menuItems: { id: TabType; label: string; icon: string }[] = [
     { id: 'dashboard', label: '대시보드', icon: '📊' },
     { id: 'chat', label: '채팅', icon: '💬' },
@@ -16,6 +17,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
     { id: 'documents', label: '결재문서함', icon: '📁' },
     { id: 'staff', label: '직원현황', icon: '👥' },
   ];
+
+  if (currentUser?.role === 'ADMIN') {
+    menuItems.push({ id: 'admin', label: '관리자 설정', icon: '⚙️' });
+  }
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col sticky top-0 z-40 flex-shrink-0">

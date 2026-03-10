@@ -7,6 +7,7 @@ import AuthScreen from './components/AuthScreen';
 import StaffStatus from './components/StaffStatus';
 import ChatRoomList from './components/ChatRoomList';
 import ChatRoomDetail from './components/ChatRoomDetail';
+import AdminUserManagement from './components/AdminUserManagement';
 import { TabType, ApprovalDocument, ApprovalStatus, User, ApprovalLine, ApprovalRole, Attachment, ChatRoom } from './types';
 import { MOCK_DOCUMENTS, MOCK_USERS, TEMPLATES } from './constants';
 import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser, deleteUser } from './services/dbService';
@@ -17,7 +18,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [mockUsers, setMockUsers] = useState<User[]>(MOCK_USERS);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references'>('approvals'); // Sub-tab for documents
+  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'all'>('approvals'); // Sub-tab for documents
   const [documents, setDocuments] = useState<ApprovalDocument[]>(MOCK_DOCUMENTS);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CHATS);
@@ -287,6 +288,8 @@ const App: React.FC = () => {
             onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
           />
         );
+      case 'admin':
+        return <AdminUserManagement />;
       case 'chat':
         return (
           <div className="flex h-full bg-white border-l border-slate-200 overflow-hidden shadow-sm">
@@ -329,6 +332,9 @@ const App: React.FC = () => {
           filteredDocs = documents.filter(d => 
             d.referenceUsers.some(u => u.id === currentUser?.id)
           );
+        } else if (activeDocTab === 'all') {
+          titleText = '전체 문서 관리';
+          filteredDocs = documents;
         } else {
           titleText = '기안문서함';
           filteredDocs = documents.filter(d => d.author.id === currentUser?.id);
@@ -363,6 +369,16 @@ const App: React.FC = () => {
                 >
                   👀 참조문서함
                 </button>
+                {currentUser?.role === 'ADMIN' && (
+                  <button 
+                    onClick={() => setActiveDocTab('all')}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                      activeDocTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    🔐 전체 문서
+                  </button>
+                )}
               </div>
             </div>
 
@@ -431,6 +447,7 @@ const App: React.FC = () => {
           setActiveTab(tab);
         }} 
         onLogout={handleLogout}
+        currentUser={currentUser}
       />
       
       <div className="flex-1 flex flex-col h-screen overflow-hidden">

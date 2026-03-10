@@ -11,17 +11,18 @@ interface StaffStatusProps {
 
 interface EditUserModalProps {
   user: User;
+  currentUser: User;
   onClose: () => void;
   onSave: (user: User) => void;
 }
 
-const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSave }) => {
+const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: user.name,
     position: user.position,
     department: user.department,
     phone: user.phone,
-    password: user.password || ''
+    password: ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -30,7 +31,20 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSave }) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ ...user, ...formData });
+    // Only include password if it was changed (and only if field exists)
+    const updatedUser = { ...user, ...formData };
+    if (!formData.password) {
+      delete updatedUser.password;
+    }
+    onSave(updatedUser);
+  };
+
+  const handleResetPassword = () => {
+    if (confirm('비밀번호를 초기화 하시겠습니까? 초기 비밀번호는 "1234" 입니다.')) {
+      onSave({ ...user, password: '1234' });
+      alert('비밀번호가 "1234"로 초기화 되었습니다.');
+      onClose();
+    }
   };
 
   return (
@@ -94,16 +108,36 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSave }) 
               required
             />
           </div>
+          
+          {/* Password Change Field */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">비밀번호</label>
-            <input
-              type="text"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+            <label className="text-xs font-bold text-slate-500 uppercase">
+              {currentUser.role === 'ADMIN' ? '비밀번호 관리' : '비밀번호 변경'}
+            </label>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="password"
+                name="password"
+                placeholder="새 비밀번호 입력"
+                value={formData.password}
+                onChange={handleChange}
+                className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              {currentUser.role === 'ADMIN' && (
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              * 변경할 경우에만 입력하세요. {currentUser.role === 'ADMIN' && '초기화 시 "1234"로 설정됩니다.'}
+            </p>
           </div>
+
           <div className="flex gap-2 pt-4">
             <button
               type="button"
@@ -227,8 +261,10 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
                 {filteredUsers.sort((a, b) => a.name.localeCompare(b.name)).map(user => (
                   <div key={user.id} className="group relative p-4 rounded-xl border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all bg-white hover:bg-blue-50/10">
                     
-                    {/* Admin Actions */}
-                    <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    {/* Admin Actions or Self Actions */}
+                    <div className={`absolute top-3 right-3 flex gap-1 transition-opacity z-10 ${
+                      (currentUser.role === 'ADMIN' || currentUser.id === user.id) ? 'opacity-0 group-hover:opacity-100' : 'hidden'
+                    }`}>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
                         className="p-1.5 bg-white text-slate-500 hover:text-blue-600 border border-slate-200 rounded-lg shadow-sm hover:shadow"
@@ -236,13 +272,15 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
                       >
                         ✏️
                       </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onDeleteUser(user.id); }}
-                        className="p-1.5 bg-white text-slate-500 hover:text-red-600 border border-slate-200 rounded-lg shadow-sm hover:shadow"
-                        title="삭제"
-                      >
-                        🗑️
-                      </button>
+                      {currentUser.role === 'ADMIN' && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onDeleteUser(user.id); }}
+                          className="p-1.5 bg-white text-slate-500 hover:text-red-600 border border-slate-200 rounded-lg shadow-sm hover:shadow"
+                          title="삭제"
+                        >
+                          🗑️
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -285,6 +323,7 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
       {editingUser && (
         <EditUserModal 
           user={editingUser} 
+          currentUser={currentUser}
           onClose={() => setEditingUser(null)} 
           onSave={(updatedUser) => {
             onUpdateUser(updatedUser);

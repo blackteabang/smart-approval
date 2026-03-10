@@ -7,7 +7,15 @@ import { MOCK_USERS, MOCK_DOCUMENTS } from '../constants';
 export const getUsers = async (): Promise<User[]> => {
   if (!isSupabaseConfigured()) {
     const saved = localStorage.getItem('smartapprove_users');
-    return saved ? JSON.parse(saved) : MOCK_USERS;
+    let users = saved ? JSON.parse(saved) : MOCK_USERS;
+
+    // Migration: Ensure all users have a role
+    users = users.map((u: any) => ({
+      ...u,
+      role: u.role || (u.id === 'admin' ? 'ADMIN' : 'USER')
+    }));
+
+    return users;
   }
   
   const { data, error } = await supabase!.from('users').select('*');

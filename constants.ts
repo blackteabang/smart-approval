@@ -2,12 +2,13 @@
 import { ApprovalStatus, User, DocumentTemplate, ApprovalDocument } from './types';
 
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: '김철수', position: '과장', department: '기획부', phone: '010-1234-5678', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u1' },
-  { id: 'u2', name: '박민준', position: '부장', department: '기획부', phone: '010-1111-2222', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u2' },
-  { id: 'u3', name: '이서윤', position: '이사', department: '기획본부', phone: '010-3333-4444', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u3' },
-  { id: 'u4', name: '최재원', position: '상무', department: '경영지원', phone: '010-5555-6666', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u4' },
-  { id: 'u5', name: '정다은', position: '팀장', department: '마케팅팀', phone: '010-7777-8888', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u5' },
-  { id: 'u6', name: '한지민', position: '대리', department: '인사팀', phone: '010-9999-0000', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u6' },
+  { id: 'u1', name: '김철수', position: '과장', department: '기획부', phone: '010-1234-5678', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u1', role: 'USER' },
+  { id: 'u2', name: '박민준', position: '부장', department: '기획부', phone: '010-1111-2222', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u2', role: 'USER' },
+  { id: 'u3', name: '이서윤', position: '이사', department: '기획본부', phone: '010-3333-4444', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u3', role: 'USER' },
+  { id: 'u4', name: '최재원', position: '상무', department: '경영지원', phone: '010-5555-6666', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u4', role: 'USER' },
+  { id: 'u5', name: '정다은', position: '팀장', department: '마케팅팀', phone: '010-7777-8888', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u5', role: 'USER' },
+  { id: 'u6', name: '한지민', position: '대리', department: '인사팀', phone: '010-9999-0000', password: 'password123', avatar: 'https://i.pravatar.cc/150?u=u6', role: 'USER' },
+  { id: 'admin', name: '관리자', position: '관리자', department: '관리팀', phone: 'admin', password: 'admin', avatar: 'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff', role: 'ADMIN' },
 ];
 
 export const TEMPLATES: DocumentTemplate[] = [

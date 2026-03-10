@@ -15,6 +15,7 @@ export type User = {
   phone: string;
   password?: string;
   avatar?: string;
+  role: 'ADMIN' | 'USER';
 };
 
 export type ApprovalRole = 'APPROVER' | 'AGREEMENT';
@@ -56,7 +57,7 @@ export type ApprovalDocument = {
   attachments: Attachment[];
 };
 
-export type TabType = 'dashboard' | 'draft' | 'documents' | 'staff' | 'chat';
+export type TabType = 'dashboard' | 'draft' | 'documents' | 'staff' | 'chat' | 'admin';
 
 export type ChatMessage = {
   id: string;

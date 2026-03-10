@@ -28,18 +28,18 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
     e.preventDefault();
     
     if (isLogin) {
-      // Normalize phone number (remove hyphens)
-      const inputPhone = formData.phone.replace(/-/g, '');
+      // Normalize phone number (remove hyphens) - but keep 'admin' as is
+      const inputPhone = formData.phone === 'admin' ? 'admin' : formData.phone.replace(/-/g, '');
       
       const user = mockUsers.find(u => {
-        const userPhone = u.phone.replace(/-/g, '');
+        const userPhone = u.phone === 'admin' ? 'admin' : u.phone.replace(/-/g, '');
         return userPhone === inputPhone && u.password === formData.password;
       });
 
       if (user) {
         onLogin(user);
       } else {
-        setError('휴대폰 번호 또는 비밀번호가 올바르지 않습니다.');
+        setError('아이디(연락처) 또는 비밀번호가 올바르지 않습니다.');
       }
     } else {
       // Basic validation for sign up
@@ -62,7 +62,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
         department: formData.department,
         phone: formData.phone, // Store as entered, or normalize if preferred
         password: formData.password,
-        avatar: `https://i.pravatar.cc/150?u=${Date.now()}`
+        avatar: `https://i.pravatar.cc/150?u=${Date.now()}`,
+        role: 'USER'
       };
       onSignUp(newUser);
     }
