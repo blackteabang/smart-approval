@@ -300,6 +300,7 @@ const App: React.FC = () => {
             currentUser={currentUser}
             documents={documents}
             onNavigate={(tab) => setActiveTab(tab)}
+            onSelectDoc={(doc) => setSelectedDoc(doc)}
             onSelectTemplate={(templateId) => {
               setPreSelectedTemplateId(templateId);
               setActiveTab('draft');

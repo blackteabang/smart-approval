@@ -1,15 +1,16 @@
 
-import React from 'react';
-import { ApprovalDocument, ApprovalStatus, User } from '../types';
+import React, { useMemo } from 'react';
+import { ApprovalDocument, ApprovalStatus, User, TabType } from '../types';
 
 interface DashboardProps {
   documents: ApprovalDocument[];
   onSelectDoc: (doc: ApprovalDocument) => void;
   currentUser: User;
-  onRecommendationClick: (templateId: string) => void;
+  onSelectTemplate: (templateId: string) => void;
+  onNavigate: (tab: TabType) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUser, onRecommendationClick }) => {
+const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUser, onSelectTemplate, onNavigate }) => {
   const stats = [
     { label: '기안한 문서', value: documents.filter(d => d.author.id === currentUser.id).length, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: '승인완료', value: documents.filter(d => d.status === ApprovalStatus.APPROVED && d.author.id === currentUser.id).length, color: 'text-green-600', bg: 'bg-green-50' },
@@ -24,6 +25,32 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
     doc.author.id === currentUser.id || 
     doc.approvalLine.some(line => line.user.id === currentUser.id)
   );
+
+  // 간단한 AI 추천 로직 (부서 및 시기 기반)
+  const recommendations = useMemo(() => {
+    const recs = [];
+    const month = new Date().getMonth() + 1;
+
+    // 1. 시기별 추천
+    if (month === 12 || month === 1) {
+      recs.push({ id: 't2', title: '연차 휴가 신청', reason: '연말연시 휴가 계획을 세워보세요.', color: 'blue' });
+    } else if (month === 3 || month === 4) {
+      recs.push({ id: 't4', title: '품의서', reason: '새로운 분기 업무 계획 승인이 필요하신가요?', color: 'blue' });
+    } else {
+      recs.push({ id: 't2', title: '연차 휴가 신청', reason: '열심히 일한 당신, 휴식이 필요합니다.', color: 'blue' });
+    }
+
+    // 2. 부서별 추천
+    if (currentUser.department.includes('영업') || currentUser.department.includes('마케팅')) {
+      recs.push({ id: 't3', title: '출장 신청서', reason: '외부 미팅이나 출장이 잦은 부서입니다.', color: 'slate' });
+    } else if (currentUser.department.includes('재무') || currentUser.department.includes('회계') || currentUser.department.includes('총무')) {
+      recs.push({ id: 't1', title: '지출 결의서', reason: '비용 처리가 많은 부서입니다.', color: 'slate' });
+    } else {
+      recs.push({ id: 't4', title: '품의서', reason: '일반적인 업무 보고 및 승인을 위한 양식입니다.', color: 'slate' });
+    }
+
+    return recs;
+  }, [currentUser]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -45,6 +72,12 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-800">최근 결재 문서</h3>
+            <button 
+              onClick={() => onNavigate('documents')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              전체보기 →
+            </button>
           </div>
           <div className="divide-y divide-slate-100">
             {filteredDocuments.slice(0, 5).map((doc) => (
@@ -67,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
                   doc.status === ApprovalStatus.REJECTED ? 'bg-red-100 text-red-700' :
                   'bg-blue-100 text-blue-700'
                 }`}>
-                  {doc.status}
+                  {doc.status === ApprovalStatus.APPROVED ? '승인' : doc.status === ApprovalStatus.REJECTED ? '반려' : '진행중'}
                 </span>
               </div>
             ))}
@@ -80,38 +113,19 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
             <span>🤖</span> 인공지능 추천 양식
           </h3>
           <div className="space-y-4">
-            <div 
-              onClick={() => onRecommendationClick('t2')}
-              className="p-4 bg-blue-50 rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 hover:border-blue-300 transition-all group active:scale-95"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-blue-700">연차 휴가 신청</p>
-                <span className="text-blue-400 group-hover:translate-x-1 transition-transform">→</span>
+            {recommendations.map((rec, index) => (
+              <div 
+                key={index}
+                onClick={() => onSelectTemplate(rec.id)}
+                className={`p-4 bg-${rec.color}-50 rounded-xl border border-${rec.color}-100 cursor-pointer hover:bg-${rec.color}-100 hover:border-${rec.color}-300 transition-all group active:scale-95`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className={`text-sm font-bold text-${rec.color}-700`}>{rec.title}</p>
+                  <span className={`text-${rec.color}-400 group-hover:translate-x-1 transition-transform`}>→</span>
+                </div>
+                <p className={`text-xs text-${rec.color}-500 mt-1`}>{rec.reason}</p>
               </div>
-              <p className="text-xs text-blue-500 mt-1">곧 휴가 시즌입니다. 초안을 작성해보세요.</p>
-            </div>
-            
-            <div 
-              onClick={() => onRecommendationClick('t1')}
-              className="p-4 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all group active:scale-95"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-slate-700">지출 결의서</p>
-                <span className="text-slate-400 group-hover:translate-x-1 transition-transform">→</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">이달의 경비 처리를 시작하세요.</p>
-            </div>
-
-            <div 
-              onClick={() => onRecommendationClick('t4')}
-              className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 hover:border-indigo-300 transition-all group active:scale-95"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-indigo-700">신규 사업 품의</p>
-                <span className="text-indigo-400 group-hover:translate-x-1 transition-transform">→</span>
-              </div>
-              <p className="text-xs text-indigo-500 mt-1">새로운 아이디어가 있으신가요?</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>
