@@ -75,7 +75,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl shadow-blue-200 mb-6">
             <span className="text-3xl text-white">⚡</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">SmartApprove</h1>
+          <h1 className="text-3xl font-bold text-slate-900">리맨전자결재</h1>
           <p className="text-slate-500 mt-2">기업용 인공지능 전자결재 시스템</p>
         </div>
 
@@ -193,7 +193,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, mockUsers, onSignUp })
         </div>
 
         <p className="text-center mt-8 text-xs text-slate-400">
-          © 2024 SmartApprove Inc. 모든 권리 보유.
+          © 2024 리맨전자결재 Inc. 모든 권리 보유.
         </p>
       </div>
     </div>

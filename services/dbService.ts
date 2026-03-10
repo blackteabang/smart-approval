@@ -20,7 +20,18 @@ export const getUsers = async (): Promise<User[]> => {
 
 export const saveUser = async (user: User): Promise<User | null> => {
   if (!isSupabaseConfigured()) {
-    // LocalStorage handled in App.tsx side-effect, just return user
+    const users = await getUsers();
+    const existingIndex = users.findIndex(u => u.id === user.id);
+    
+    let updatedUsers;
+    if (existingIndex >= 0) {
+      updatedUsers = [...users];
+      updatedUsers[existingIndex] = user;
+    } else {
+      updatedUsers = [...users, user];
+    }
+    
+    localStorage.setItem('smartapprove_users', JSON.stringify(updatedUsers));
     return user;
   }
 
@@ -33,7 +44,12 @@ export const saveUser = async (user: User): Promise<User | null> => {
 };
 
 export const deleteUser = async (userId: string): Promise<boolean> => {
-  if (!isSupabaseConfigured()) return true;
+  if (!isSupabaseConfigured()) {
+    const users = await getUsers();
+    const updatedUsers = users.filter(u => u.id !== userId);
+    localStorage.setItem('smartapprove_users', JSON.stringify(updatedUsers));
+    return true;
+  }
   
   const { error } = await supabase!.from('users').delete().eq('id', userId);
   return !error;
@@ -77,7 +93,12 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
 };
 
 export const createDocument = async (doc: ApprovalDocument): Promise<boolean> => {
-  if (!isSupabaseConfigured()) return true;
+  if (!isSupabaseConfigured()) {
+    const docs = await getDocuments();
+    const updatedDocs = [doc, ...docs];
+    localStorage.setItem('smartapprove_docs', JSON.stringify(updatedDocs));
+    return true;
+  }
 
   // 1. Insert Document
   const { error: docError } = await supabase!.from('documents').insert({
@@ -125,7 +146,21 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
 };
 
 export const updateDocumentStatus = async (docId: string, status: string, approvalLine: ApprovalLine[]): Promise<boolean> => {
-  if (!isSupabaseConfigured()) return true;
+  if (!isSupabaseConfigured()) {
+    const docs = await getDocuments();
+    const updatedDocs = docs.map(doc => {
+      if (doc.id === docId) {
+        return {
+          ...doc,
+          status: status as ApprovalStatus,
+          approvalLine
+        };
+      }
+      return doc;
+    });
+    localStorage.setItem('smartapprove_docs', JSON.stringify(updatedDocs));
+    return true;
+  }
 
   // Update document status
   await supabase!.from('documents').update({ status }).eq('id', docId);
