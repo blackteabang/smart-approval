@@ -40,7 +40,15 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       const users = await getUsers();
-      setMockUsers(users.length > 0 ? users : MOCK_USERS);
+      // 데이터가 없거나 데모 데이터가 누락된 경우 병합
+      const hasMockData = users.some(u => u.id === 'u1');
+      if (!hasMockData) {
+        const existingIds = new Set(users.map(u => u.id));
+        const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+        setMockUsers([...users, ...missingMocks]);
+      } else {
+        setMockUsers(users.length > 0 ? users : MOCK_USERS);
+      }
       
       const docs = await getDocuments();
       setDocuments(docs.length > 0 ? docs : MOCK_DOCUMENTS);
@@ -137,7 +145,17 @@ const App: React.FC = () => {
   const handleSignUp = async (newUser: User) => {
     await saveUser(newUser);
     const users = await getUsers();
-    setMockUsers(users);
+    
+    // 데모 데이터 병합 로직 적용
+    const hasMockData = users.some(u => u.id === 'u1');
+    if (!hasMockData) {
+      const existingIds = new Set(users.map(u => u.id));
+      const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+      setMockUsers([...users, ...missingMocks]);
+    } else {
+      setMockUsers(users);
+    }
+    
     handleLogin(newUser);
   };
 
