@@ -14,10 +14,10 @@ export const getUsers = async (): Promise<User[]> => {
     const saved = localStorage.getItem('smartapprove_users');
     let users = saved ? JSON.parse(saved) : [...MOCK_USERS];
 
-    // MOCK_USERS가 존재하는지 확인 (누락 시 복구)
-    // 예: 'u1' (김철수) 사용자가 없으면 데모 데이터가 손실된 것으로 간주하고 복구 시도
-    const hasMockUser = users.some((u: any) => u.id === 'u1');
-    if (!hasMockUser) {
+    // 데이터가 없거나(0명) 관리자만 있는 경우, 또는 데모 데이터(u1)가 누락된 경우 복구
+    const shouldRestoreMocks = users.length <= 1 || !users.some((u: any) => u.id === 'u1');
+    
+    if (shouldRestoreMocks) {
       const existingIds = new Set(users.map((u: any) => u.id));
       const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
       users = [...users, ...missingMocks];
