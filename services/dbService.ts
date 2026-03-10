@@ -26,6 +26,23 @@ export const getUsers = async (): Promise<User[]> => {
       localStorage.setItem('smartapprove_users', JSON.stringify(users));
     }
 
+    // 마이그레이션: 관리자 계정 정보 강제 업데이트 (전화번호 'admin' 보장)
+    const adminIndex = users.findIndex((u: any) => u.id === 'admin');
+    const mockAdmin = MOCK_USERS.find(u => u.id === 'admin');
+    
+    if (adminIndex !== -1 && mockAdmin) {
+      const currentAdmin = users[adminIndex];
+      // 전화번호나 권한이 업데이트되지 않은 경우 강제 업데이트
+      if (currentAdmin.phone !== mockAdmin.phone || currentAdmin.role !== 'ADMIN') {
+        users[adminIndex] = { ...currentAdmin, ...mockAdmin };
+        localStorage.setItem('smartapprove_users', JSON.stringify(users));
+      }
+    } else if (adminIndex === -1 && mockAdmin) {
+      // 관리자 계정이 아예 없으면 추가
+      users.push(mockAdmin);
+      localStorage.setItem('smartapprove_users', JSON.stringify(users));
+    }
+
     // 마이그레이션: 모든 사용자가 role 속성을 가지도록 보장
     users = users.map((u: any) => ({
       ...u,
