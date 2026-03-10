@@ -34,7 +34,8 @@ const AdminUserManagement: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     const data = await getUsers();
-    setUsers(data);
+    // 데이터가 없으면 데모 데이터(MOCK_USERS)를 사용
+    setUsers(data.length > 0 ? data : MOCK_USERS);
     setLoading(false);
   };
 
