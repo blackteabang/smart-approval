@@ -124,6 +124,30 @@ const App: React.FC = () => {
   };
 
   /**
+   * 채팅방 초대 처리
+   */
+  const handleInviteUser = (roomId: string, user: User) => {
+    setChatRooms(prev => prev.map(room => {
+      if (room.id !== roomId) return room;
+      if (room.participants.some(p => p.id === user.id)) return room;
+      
+      const systemMsg: any = {
+        id: `msg-${Date.now()}`,
+        senderId: 'system',
+        content: `${user.name}님이 초대되었습니다.`,
+        timestamp: new Date().toISOString(),
+        type: 'system'
+      };
+
+      return {
+        ...room,
+        participants: [...room.participants, user],
+        messages: [...room.messages, systemMsg]
+      };
+    }));
+  };
+
+  /**
    * 로그인 처리
    */
   const handleLogin = (user: User) => {
@@ -491,11 +515,14 @@ const App: React.FC = () => {
               users={mockUsers}
               onCreateRoom={handleCreateChatRoom}
             />
-            {activeChatRoomId ? (
+            {activeChatRoomId && chatRooms.find(r => r.id === activeChatRoomId) ? (
               <ChatRoomDetail
                 currentUser={currentUser!}
-                chatRoom={chatRooms.find(r => r.id === activeChatRoomId)!}
+                users={mockUsers}
+                room={chatRooms.find(r => r.id === activeChatRoomId)!}
                 onSendMessage={handleSendMessage}
+                onInviteUser={handleInviteUser}
+                onClose={() => setActiveChatRoomId(null)}
               />
             ) : (
               <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
