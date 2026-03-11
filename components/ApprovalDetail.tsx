@@ -27,10 +27,8 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
     document.body.removeChild(link);
   };
 
-  // Logic: Can the current user approve this document?
-  // They must be the NEXT person in line whose status is PENDING
-  const activeStep = doc.approvalLine.find(line => line.status === 'PENDING');
-  const isMyTurn = activeStep?.user.id === currentUser.id && doc.status === ApprovalStatus.PENDING;
+  const activeStep = doc.approvalLine?.find(line => line.status === 'PENDING');
+  const isMyTurn = activeStep?.user?.id === currentUser.id && doc.status === ApprovalStatus.PENDING;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -54,11 +52,11 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
               <h3 className="text-sm font-bold text-slate-400 uppercase">기안 정보</h3>
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-xl font-bold text-blue-600 overflow-hidden">
-                  {doc.author.avatar ? <img src={doc.author.avatar} alt="" /> : doc.author.name.charAt(0)}
+                  {doc.author?.avatar ? <img src={doc.author.avatar} alt="" /> : doc.author?.name?.charAt(0) || '?'}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">{doc.author.name} {doc.author.position}</p>
-                  <p className="text-sm text-slate-500">{doc.author.department} · {new Date(doc.createdAt).toLocaleString()}</p>
+                  <p className="font-bold text-slate-900">{doc.author?.name} {doc.author?.position}</p>
+                  <p className="text-sm text-slate-500">{doc.author?.department} · {new Date(doc.createdAt).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -66,7 +64,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-400 uppercase">결재선 상태</h3>
               <div className="flex gap-4 overflow-x-auto pb-2">
-                {doc.approvalLine.map((line, idx) => (
+                {doc.approvalLine?.map((line, idx) => (
                   <div key={line.id} className="relative flex flex-col items-center flex-shrink-0">
                     <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-[10px] font-bold border-2 transition-all ${
                       line.status === 'APPROVED' ? 'bg-green-50 border-green-200 text-green-700' :
@@ -77,9 +75,9 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
                       <span className="opacity-70 mb-1">{line.role === 'AGREEMENT' ? '합의' : '결재'}</span>
                       <span className="text-sm">{line.status === 'APPROVED' ? '승인' : line.status === 'REJECTED' ? '반려' : '대기'}</span>
                     </div>
-                    <p className="text-xs font-bold mt-2 text-slate-900">{line.user.name}</p>
-                    <p className="text-[10px] text-slate-500">{line.user.position}</p>
-                    {idx < doc.approvalLine.length - 1 && (
+                    <p className="text-xs font-bold mt-2 text-slate-900">{line.user?.name}</p>
+                    <p className="text-[10px] text-slate-500">{line.user?.position}</p>
+                    {doc.approvalLine && idx < doc.approvalLine.length - 1 && (
                       <div className="absolute top-7 -right-3 w-4 h-[2px] bg-slate-200" />
                     )}
                   </div>
@@ -95,7 +93,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
             </div>
           </div>
 
-          {doc.attachments.length > 0 && (
+          {doc.attachments?.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-400 uppercase">첨부 파일 ({doc.attachments.length})</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -117,7 +115,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
             </div>
           )}
 
-          {doc.referenceUsers.length > 0 && (
+          {doc.referenceUsers?.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-400 uppercase">참조자</h3>
               <div className="flex flex-wrap gap-2">
