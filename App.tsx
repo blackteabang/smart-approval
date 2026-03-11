@@ -352,11 +352,31 @@ const App: React.FC = () => {
 
         {activeTab === 'draft' && (
           <DraftView 
-            currentUser={currentUser}
-            templates={TEMPLATES}
             users={mockUsers}
-            onCreateDocument={handleCreateDocument}
             preSelectedTemplateId={preSelectedTemplateId}
+            onSubmit={async (title, content, templateId, approvalLine, referenceUsers, attachments) => {
+              if (!currentUser) return;
+
+              const newDoc: ApprovalDocument = {
+                id: `doc-${Date.now()}`,
+                title,
+                templateId,
+                content,
+                author: currentUser,
+                status: ApprovalStatus.PENDING,
+                createdAt: new Date().toISOString(),
+                approvalLine: approvalLine.map((item, index) => ({
+                  id: `line-${Date.now()}-${index}`,
+                  user: item.user,
+                  status: 'PENDING',
+                  role: item.role
+                })),
+                referenceUsers,
+                attachments
+              };
+
+              await handleCreateDocument(newDoc);
+            }}
           />
         )}
 

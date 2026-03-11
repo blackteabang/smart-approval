@@ -126,6 +126,28 @@ const DraftView: React.FC<DraftViewProps> = ({ onSubmit, users, preSelectedTempl
     );
   }
 
+  const handleSubmit = () => {
+    const approvers = approvalLine.filter(l => l.role === 'APPROVER');
+    if (approvers.length === 0) {
+      alert('최소 1명 이상의 최종 결재자를 지정해야 합니다.');
+      return;
+    }
+    if (!title.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+    
+    // Pass plain objects instead of state directly if needed, but here it's fine
+    onSubmit(
+      title, 
+      content, 
+      selectedTemplate.id, 
+      approvalLine, 
+      referenceUsers, 
+      attachments
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden pb-12 animate-in fade-in zoom-in-95 duration-300">
       <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
@@ -143,18 +165,7 @@ const DraftView: React.FC<DraftViewProps> = ({ onSubmit, users, preSelectedTempl
             임시저장
           </button>
           <button 
-            onClick={() => {
-              const approvers = approvalLine.filter(l => l.role === 'APPROVER');
-              if (approvers.length === 0) {
-                alert('최소 1명 이상의 최종 결재자를 지정해야 합니다.');
-                return;
-              }
-              if (!title.trim()) {
-                alert('제목을 입력해주세요.');
-                return;
-              }
-              onSubmit(title, content, selectedTemplate.id, approvalLine, referenceUsers, attachments);
-            }}
+            onClick={handleSubmit}
             className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-100 transition-all hover:-translate-y-0.5"
           >
             결재요청
