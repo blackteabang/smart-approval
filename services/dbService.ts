@@ -269,25 +269,3 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
   return true;
 };
 
-/**
- * 모든 문서 삭제 (관리자용)
- */
-export const deleteAllDocuments = async (): Promise<boolean> => {
-  if (!isSupabaseConfigured()) {
-    localStorage.removeItem('smartapprove_docs');
-    return true;
-  }
-
-  // Supabase에서 모든 문서 삭제 (CASCADE 설정으로 인해 연관된 데이터도 삭제됨)
-  // RLS 정책이 있다면 삭제 권한이 있어야 함
-  const { error } = await supabase!.from('documents').delete().neq('id', '0'); // 모든 행 삭제
-  
-  if (error) {
-    console.error('Error deleting all documents:', error);
-    // 실패 시 로컬 스토리지라도 삭제 시도
-    localStorage.removeItem('smartapprove_docs');
-    return false;
-  }
-  
-  return true;
-};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { getUsers, saveUser, deleteUser, resetToMockData, deleteAllDocuments } from '../services/dbService';
-import { FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiSave, FiX, FiKey, FiFileMinus } from 'react-icons/fi';
+import { getUsers, saveUser, deleteUser, resetToMockData } from '../services/dbService';
+import { FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiSave, FiX, FiKey } from 'react-icons/fi';
 
 import { MOCK_USERS } from '../constants';
 
@@ -50,20 +50,6 @@ const AdminUserManagement: React.FC = () => {
     }
   };
   
-  /**
-   * 모든 문서 삭제 핸들러
-   */
-  const handleDeleteAllDocuments = async () => {
-    if (confirm('정말로 모든 결재 문서를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
-      const success = await deleteAllDocuments();
-      if (success) {
-        alert('모든 문서가 삭제되었습니다.');
-      } else {
-        alert('문서 삭제 중 오류가 발생했습니다.');
-      }
-    }
-  };
-
   /**
    * 데모 데이터 로드 핸들러 (데이터가 없을 때 사용)
    */
@@ -227,12 +213,6 @@ const AdminUserManagement: React.FC = () => {
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
           <h2 className="text-2xl font-bold text-gray-800">{selectedDept || '전체 직원'} 관리</h2>
           <div className="flex flex-wrap gap-3">
-            <button 
-              onClick={handleDeleteAllDocuments}
-              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all font-bold text-sm border border-red-100"
-            >
-              <FiFileMinus /> 모든 문서 삭제
-            </button>
             <button 
               onClick={handleInitializeData}
               className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all font-bold text-sm border border-amber-100"
