@@ -129,7 +129,9 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
 
   if (error) {
     console.error('Error fetching documents:', error);
-    return [];
+    // Supabase 조회 실패 시 로컬 스토리지 데이터 반환 (백업 데이터)
+    const saved = localStorage.getItem('smartapprove_docs');
+    return saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
   }
 
   // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
