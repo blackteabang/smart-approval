@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { getUsers, saveUser, deleteUser, resetToMockData } from '../services/dbService';
-import { FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiSave, FiX, FiKey } from 'react-icons/fi';
+import { getUsers, saveUser, deleteUser } from '../services/dbService';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiKey } from 'react-icons/fi';
 
 import { MOCK_USERS } from '../constants';
 
@@ -37,25 +37,6 @@ const AdminUserManagement: React.FC = () => {
     // 데이터가 없으면 데모 데이터(MOCK_USERS)를 사용
     setUsers(data.length > 0 ? data : MOCK_USERS);
     setLoading(false);
-  };
-
-  /**
-   * 데이터 초기화 핸들러 (데모 데이터로 복구)
-   */
-  const handleInitializeData = async () => {
-    if (confirm('모든 데이터를 초기화하고 기본 데이터를 복구하시겠습니까?')) {
-      await resetToMockData();
-      await fetchUsers();
-      alert('데이터가 초기화되었습니다.');
-    }
-  };
-  
-  /**
-   * 데모 데이터 로드 핸들러 (데이터가 없을 때 사용)
-   */
-  const handleLoadDemoData = async () => {
-    await resetToMockData();
-    await fetchUsers();
   };
 
   useEffect(() => {
@@ -213,12 +194,6 @@ const AdminUserManagement: React.FC = () => {
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
           <h2 className="text-2xl font-bold text-gray-800">{selectedDept || '전체 직원'} 관리</h2>
           <div className="flex flex-wrap gap-3">
-            <button 
-              onClick={handleInitializeData}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all font-bold text-sm border border-amber-100"
-            >
-              <FiRefreshCw /> 데이터 초기화
-            </button>
             <button 
               onClick={() => handleOpenModal()}
               className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 font-bold text-sm"
