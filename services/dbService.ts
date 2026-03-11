@@ -137,13 +137,18 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
   // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
   return docs.map((d: any) => ({
     ...d,
-    author: d.author,
-    approvalLine: d.approvalLine.map((l: any) => ({
+    // author가 null일 경우 안전하게 처리
+    author: d.author || { name: '알 수 없음', position: '', department: '', avatar: '' },
+    // approvalLine이 null이거나 비어있을 경우 빈 배열 처리
+    approvalLine: (d.approvalLine || []).map((l: any) => ({
       ...l,
-      user: l.user
+      // user가 null일 경우 안전하게 처리
+      user: l.user || { name: '알 수 없음', position: '', department: '', avatar: '' }
     })),
-    referenceUsers: d.referenceUsers.map((r: any) => r.user),
-    attachments: d.attachments
+    // referenceUsers가 null이거나 비어있을 경우 빈 배열 처리
+    referenceUsers: (d.referenceUsers || []).map((r: any) => r.user || { name: '알 수 없음', position: '', department: '', avatar: '' }),
+    // attachments가 null이거나 비어있을 경우 빈 배열 처리
+    attachments: d.attachments || []
   }));
 };
 
