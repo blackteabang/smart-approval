@@ -149,55 +149,81 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
  * 새 문서 생성
  */
 export const createDocument = async (doc: ApprovalDocument): Promise<boolean> => {
-  if (!isSupabaseConfigured()) {
-    const docs = await getDocuments();
-    const updatedDocs = [doc, ...docs];
+  // 로컬 저장소 저장 헬퍼 함수
+  const saveLocalDocument = async (docToSave: ApprovalDocument) => {
+    // 로컬 모드에서는 getDocuments가 로컬 스토리지를 읽으므로 바로 사용 가능
+    // 하지만 DB 모드에서 실패해서 여기로 온 경우, getDocuments는 DB 조회를 시도할 수 있음.
+    // 따라서 직접 로컬 스토리지 접근이 안전함.
+    const saved = localStorage.getItem('smartapprove_docs');
+    const docs = saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
+    const updatedDocs = [docToSave, ...docs];
     localStorage.setItem('smartapprove_docs', JSON.stringify(updatedDocs));
     return true;
+  };
+
+  if (!isSupabaseConfigured()) {
+    return saveLocalDocument(doc);
   }
 
-  // 1. 문서 기본 정보 저장
-  const { error: docError } = await supabase!.from('documents').insert({
-    id: doc.id,
-    title: doc.title,
-    content: doc.content,
-    template_id: doc.templateId,
-    author_id: doc.author.id,
-    status: doc.status,
-    created_at: doc.createdAt
-  });
-  if (docError) return false;
+  try {
+    // 1. 문서 기본 정보 저장
+    const { error: docError } = await supabase!.from('documents').insert({
+      id: doc.id,
+      title: doc.title,
+      content: doc.content,
+      template_id: doc.templateId,
+      author_id: doc.author.id,
+      status: doc.status,
+      created_at: doc.createdAt
+    });
+    
+    if (docError) {
+      console.error('Error creating document in Supabase:', docError);
+      throw docError;
+    }
 
-  // 2. 결재선 정보 저장
-  const lines = doc.approvalLine.map((l, index) => ({
-    id: l.id,
-    document_id: doc.id,
-    user_id: l.user.id,
-    status: l.status,
-    role: l.role,
-    step_order: index
-  }));
-  await supabase!.from('approval_lines').insert(lines);
+    // 2. 결재선 정보 저장
+    const lines = doc.approvalLine.map((l, index) => ({
+      id: l.id,
+      document_id: doc.id,
+      user_id: l.user.id,
+      status: l.status,
+      role: l.role,
+      step_order: index
+    }));
+    const { error: lineError } = await supabase!.from('approval_lines').insert(lines);
+    if (lineError) throw lineError;
 
-  // 3. 참조자 정보 저장
-  const refs = doc.referenceUsers.map(u => ({
-    document_id: doc.id,
-    user_id: u.id
-  }));
-  if (refs.length > 0) await supabase!.from('document_references').insert(refs);
+    // 3. 참조자 정보 저장
+    if (doc.referenceUsers.length > 0) {
+      const refs = doc.referenceUsers.map(u => ({
+        document_id: doc.id,
+        user_id: u.id
+      }));
+      const { error: refError } = await supabase!.from('document_references').insert(refs);
+      if (refError) throw refError;
+    }
 
-  // 4. 첨부파일 정보 저장
-  const atts = doc.attachments?.map(a => ({
-    id: a.id,
-    document_id: doc.id,
-    name: a.name,
-    size: a.size,
-    type: a.type,
-    data: a.data
-  }));
-  if (atts && atts.length > 0) await supabase!.from('attachments').insert(atts);
+    // 4. 첨부파일 정보 저장
+    if (doc.attachments && doc.attachments.length > 0) {
+      const atts = doc.attachments.map(a => ({
+        id: a.id,
+        document_id: doc.id,
+        name: a.name,
+        size: a.size,
+        type: a.type,
+        data: a.data
+      }));
+      const { error: attError } = await supabase!.from('attachments').insert(atts);
+      if (attError) throw attError;
+    }
 
-  return true;
+    return true;
+  } catch (error) {
+    console.error('Failed to create document in Supabase, falling back to local storage:', error);
+    // DB 저장 실패 시 로컬 스토리지에 저장 (데이터 유실 방지)
+    return saveLocalDocument(doc);
+  }
 };
 
 /**

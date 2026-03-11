@@ -376,6 +376,7 @@ const App: React.FC = () => {
               };
 
               await handleCreateDocument(newDoc);
+              setPreSelectedTemplateId(null);
             }}
           />
         )}
