@@ -225,9 +225,11 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
 
   // 결재선 상태 업데이트
   for (const line of approvalLine) {
+    // role 필드가 누락되지 않도록 업데이트 시 주의
     await supabase!.from('approval_lines').update({
       status: line.status,
-      processed_at: line.processedAt
+      processed_at: line.processedAt,
+      role: line.role // role 필드 명시적 업데이트 (필수는 아니지만 안전장치)
     }).eq('id', line.id);
   }
 
