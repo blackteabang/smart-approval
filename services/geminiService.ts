@@ -30,7 +30,8 @@ export const generateDocumentContent = async (templateName: string, keywords: st
       템플릿 종류: ${templateName}
       포함할 핵심 키워드: ${keywords}
       
-      형식: 전문적인 비즈니스 문체로 작성하고, 목적, 세부 내용, 기대 효과 순서로 정리해주세요. 한국어로 작성하세요.`,
+      형식: 전문적인 비즈니스 문체로 작성하고, 목적, 세부 내용, 기대 효과 순서로 정리해주세요. 한국어로 작성하세요.
+      주의사항: 마크다운 문법(#, *, - 등)은 절대 사용하지 말고, 평범한 텍스트로 작성해주세요. 번호 매기기가 필요하면 '1.', '2.' 형식을 사용하세요.`,
     });
     return response.text;
   } catch (error) {
