@@ -15,6 +15,9 @@ export const getUsers = async (): Promise<User[]> => {
     const saved = localStorage.getItem('smartapprove_users');
     let users = saved ? JSON.parse(saved) : [...MOCK_USERS];
 
+    // 데이터 복구 로직: 로컬 스토리지가 비어있거나 MOCK_USERS가 누락된 경우에만 실행
+    // 단, 사용자가 의도적으로 MOCK_USERS를 삭제했을 수도 있으므로
+    // '데이터가 거의 없는 경우(1명 이하)'에만 복구하도록 제한
     const shouldRestoreMocks = users.length <= 1 || !users.some((u: any) => u.id === 'u1');
     if (shouldRestoreMocks) {
       const existingIds = new Set(users.map((u: any) => u.id));
@@ -73,6 +76,8 @@ export const saveUser = async (user: User): Promise<User | null> => {
   const { data, error } = await supabase!.from('users').upsert(user).select().single();
   if (error) {
     console.error('Error saving user to Supabase, falling back to local storage:', error);
+    // Supabase 저장 실패 시 로컬 스토리지에 저장하여 데이터 유실 방지
+    // 이 경우, 나중에 다시 접속했을 때 로컬 스토리지의 데이터를 사용하게 됨
     return saveLocalUser(user);
   }
   return data;
