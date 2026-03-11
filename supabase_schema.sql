@@ -1,14 +1,15 @@
-
 -- 1. Users Table (Stores user information)
 -- Using a public table instead of auth.users to keep the phone/password logic consistent with the existing app
+-- Changed ID to TEXT to support 'u-timestamp' format used by the app
 CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL, -- Note: In production, this should be hashed
   department TEXT NOT NULL,
   position TEXT NOT NULL,
   avatar TEXT,
+  role TEXT DEFAULT 'USER', -- Added role column
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -18,16 +19,16 @@ CREATE TABLE IF NOT EXISTS public.documents (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   template_id TEXT NOT NULL,
-  author_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  author_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   status TEXT NOT NULL DEFAULT 'PENDING',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Approval Lines Table (Stores who needs to approve what)
 CREATE TABLE IF NOT EXISTS public.approval_lines (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY, -- Changed to TEXT to support 'line-timestamp' format
   document_id TEXT REFERENCES public.documents(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   status TEXT NOT NULL DEFAULT 'PENDING',
   role TEXT NOT NULL, -- 'APPROVER' or 'AGREEMENT'
   processed_at TIMESTAMPTZ,
@@ -36,9 +37,9 @@ CREATE TABLE IF NOT EXISTS public.approval_lines (
 
 -- 4. Reference Users Table (Stores document references)
 CREATE TABLE IF NOT EXISTS public.document_references (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Can stay UUID as app doesn't generate this ID
   document_id TEXT REFERENCES public.documents(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE -- Changed to TEXT
 );
 
 -- 5. Attachments Table (Stores file metadata and content)
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.chat_rooms (
 -- 7. Chat Participants
 CREATE TABLE IF NOT EXISTS public.chat_participants (
   room_id TEXT REFERENCES public.chat_rooms(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   joined_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (room_id, user_id)
 );
@@ -73,7 +74,7 @@ CREATE TABLE IF NOT EXISTS public.chat_participants (
 CREATE TABLE IF NOT EXISTS public.chat_messages (
   id TEXT PRIMARY KEY,
   room_id TEXT REFERENCES public.chat_rooms(id) ON DELETE CASCADE,
-  sender_id UUID REFERENCES public.users(id) ON DELETE CASCADE, -- 'system' handled by app logic or nullable
+  sender_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   sender_type TEXT DEFAULT 'user', -- 'user' or 'system'
   content TEXT NOT NULL,
   msg_type TEXT NOT NULL DEFAULT 'text', -- 'text', 'image', 'file', 'system'
