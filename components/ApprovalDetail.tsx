@@ -92,6 +92,20 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
                   </div>
                 ))}
               </div>
+
+              {doc.referenceUsers?.length > 0 && (
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="text-xs font-bold text-slate-400 uppercase mb-2">참조자</div>
+                  <div className="flex flex-wrap gap-2">
+                    {doc.referenceUsers.map(user => (
+                      <div key={user.id} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+                        <img src={user.avatar} alt="" className="w-5 h-5 rounded-full" />
+                        <span className="text-xs font-medium text-slate-600">{user.name} {user.position} ({user.department})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -124,19 +138,6 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
             </div>
           )}
 
-          {doc.referenceUsers?.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase">참조자</h3>
-              <div className="flex flex-wrap gap-2">
-                {doc.referenceUsers.map(user => (
-                  <div key={user.id} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                    <img src={user.avatar} alt="" className="w-5 h-5 rounded-full" />
-                    <span className="text-xs font-medium text-slate-600">{user.name} {user.position} ({user.department})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
