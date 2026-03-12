@@ -3,13 +3,14 @@ import React from 'react';
 import { ApprovalDocument, ApprovalStatus, User } from '../types';
 
 interface ApprovalDetailProps {
-  doc: ApprovalDocument;
+  document: ApprovalDocument;
   currentUser: User;
-  onProcessApproval: (docId: string, status: 'APPROVED' | 'REJECTED') => void;
   onClose: () => void;
+  onApprove: (docId: string, comment: string) => void;
+  onReject: (docId: string, comment: string) => void;
 }
 
-const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onProcessApproval, onClose }) => {
+const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentUser, onClose, onApprove, onReject }) => {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -29,6 +30,14 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
 
   const activeStep = doc.approvalLine?.find(line => line.status === 'PENDING');
   const isMyTurn = activeStep?.user?.id === currentUser.id && doc.status === ApprovalStatus.PENDING;
+  const handleApprove = () => {
+    const comment = window.prompt('결재 의견(선택)을 입력하세요.', '') ?? '';
+    onApprove(doc.id, comment);
+  };
+  const handleReject = () => {
+    const comment = window.prompt('반려 사유(선택)을 입력하세요.', '') ?? '';
+    onReject(doc.id, comment);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -134,13 +143,13 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ doc, currentUser, onPro
           {isMyTurn ? (
             <>
               <button 
-                onClick={() => onProcessApproval(doc.id, 'REJECTED')}
+                onClick={handleReject}
                 className="px-6 py-2.5 bg-white border border-slate-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors shadow-sm"
               >
                 반려하기
               </button>
               <button 
-                onClick={() => onProcessApproval(doc.id, 'APPROVED')}
+                onClick={handleApprove}
                 className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
               >
                 승인하기
