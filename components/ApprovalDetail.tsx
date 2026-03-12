@@ -30,27 +30,6 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
 
   const activeStep = doc.approvalLine?.find(line => line.status === 'PENDING');
   const isMyTurn = activeStep?.user?.id === currentUser.id && doc.status === ApprovalStatus.PENDING;
-  const approvalLine = doc.approvalLine || [];
-  const approvedCount = approvalLine.filter(l => l.status === 'APPROVED').length;
-  const rejectedLine = approvalLine.find(l => l.status === 'REJECTED');
-  const pendingIndex = approvalLine.findIndex(l => l.status === 'PENDING');
-  const pendingLine = pendingIndex >= 0 ? approvalLine[pendingIndex] : undefined;
-  const docStatusLabel =
-    doc.status === ApprovalStatus.APPROVED ? '승인완료' :
-    doc.status === ApprovalStatus.REJECTED ? '반려' :
-    '진행중';
-  const currentProgressText =
-    doc.status === ApprovalStatus.APPROVED
-      ? `전체 결재 완료 (${approvedCount}/${approvalLine.length})`
-      : doc.status === ApprovalStatus.REJECTED
-        ? `반려됨${rejectedLine?.user?.name ? `: ${rejectedLine.user.name}` : ''}`
-        : pendingLine
-          ? `현재 ${pendingIndex + 1}차 ${pendingLine.role === 'AGREEMENT' ? '합의' : '결재'} 대기: ${pendingLine.user?.name || ''} ${pendingLine.user?.position || ''}`.trim()
-          : `대기 단계 없음 (${approvedCount}/${approvalLine.length})`;
-  const fullLineText = [
-    `${doc.author?.name || ''} ${doc.author?.position || ''}`.trim(),
-    ...approvalLine.map((l, idx) => `${idx + 1}차 ${l.role === 'AGREEMENT' ? '합의' : '결재'}: ${l.user?.name || ''} ${l.user?.position || ''}`.trim())
-  ].filter(Boolean).join(' → ');
   const handleApprove = () => {
     const comment = window.prompt('결재 의견(선택)을 입력하세요.', '') ?? '';
     onApprove(doc.id, comment);
@@ -93,29 +72,6 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
 
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-400 uppercase">결재선 상태</h3>
-              <div className="space-y-2">
-                <div className="p-3 rounded-2xl border border-slate-200 bg-white">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs font-bold text-slate-500">현재 결재 상태</div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      doc.status === ApprovalStatus.APPROVED ? 'bg-green-50 text-green-600 border-green-100' :
-                      doc.status === ApprovalStatus.REJECTED ? 'bg-red-50 text-red-600 border-red-100' :
-                      'bg-amber-50 text-amber-600 border-amber-100'
-                    }`}>
-                      {docStatusLabel}
-                    </span>
-                  </div>
-                  <div className="text-sm font-bold text-slate-800 mt-1">
-                    {currentProgressText}
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50">
-                  <div className="text-xs font-bold text-slate-500 mb-1">전체 결재선</div>
-                  <div className="text-[11px] text-slate-700 leading-relaxed break-words">
-                    {fullLineText}
-                  </div>
-                </div>
-              </div>
               <div className="flex gap-4 overflow-x-auto pb-2">
                 {doc.approvalLine?.map((line, idx) => (
                   <div key={line.id} className="relative flex flex-col items-center flex-shrink-0">
