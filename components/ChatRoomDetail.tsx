@@ -69,6 +69,37 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
     }
   };
 
+  const renderTextWithLinks = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, idx) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={`link-${idx}`}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 underline"
+          >
+            {part}
+          </a>
+        );
+      }
+      const lines = part.split('\n');
+      return (
+        <React.Fragment key={`text-${idx}`}>
+          {lines.map((line, lineIdx) => (
+            <React.Fragment key={`line-${idx}-${lineIdx}`}>
+              {line}
+              {lineIdx < lines.length - 1 ? <br /> : null}
+            </React.Fragment>
+          ))}
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50 border-l border-slate-200 shadow-xl flex-1 max-w-2xl min-w-[320px] overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white flex-shrink-0">
@@ -117,9 +148,9 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
           if (msg.type === 'system') {
             return (
               <div key={msg.id} className="flex justify-center my-2">
-                <span className="bg-slate-100 text-slate-500 text-[10px] px-3 py-1 rounded-full">
-                  {msg.content}
-                </span>
+                <div className="bg-slate-100 text-slate-500 text-[10px] px-3 py-1 rounded-full text-center whitespace-pre-wrap max-w-[90%]">
+                  {renderTextWithLinks(msg.content)}
+                </div>
               </div>
             );
           }

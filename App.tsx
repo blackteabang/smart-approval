@@ -51,7 +51,19 @@ const App: React.FC = () => {
       }
       
       const docs = await getDocuments();
-      setDocuments(docs.length > 0 ? docs : MOCK_DOCUMENTS);
+      const resolvedDocs = docs.length > 0 ? docs : MOCK_DOCUMENTS;
+      setDocuments(resolvedDocs);
+
+      const urlDocId = new URLSearchParams(window.location.search).get('docId');
+      if (urlDocId) {
+        const found = resolvedDocs.find(d => d.id === urlDocId);
+        if (found) {
+          setSelectedDoc(found);
+          const url = new URL(window.location.href);
+          url.searchParams.delete('docId');
+          window.history.replaceState({}, '', url.toString());
+        }
+      }
     };
     loadData();
   }, []);
@@ -108,10 +120,11 @@ const App: React.FC = () => {
     const participants = Array.from(participantMap.values());
 
     const createdAt = new Date().toISOString();
+    const docLink = `${window.location.origin}${window.location.pathname}?docId=${encodeURIComponent(doc.id)}`;
     const systemMsg: any = {
       id: `msg-${Date.now()}`,
       senderId: 'system',
-      content: `결재 문서 채팅방이 생성되었습니다: ${doc.title}`,
+      content: `[${doc.title}] 의 기안이 작성되었습니다.\n${docLink}`,
       timestamp: createdAt,
       type: 'system'
     };
