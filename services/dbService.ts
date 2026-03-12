@@ -135,20 +135,41 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
   }
 
   // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
+  const normalizeUser = (u: any): User => ({
+    id: u?.id ?? 'unknown',
+    name: u?.name ?? '알 수 없음',
+    position: u?.position ?? '',
+    department: u?.department ?? '',
+    phone: u?.phone ?? '',
+    password: u?.password,
+    avatar: u?.avatar,
+    role: u?.role ?? (u?.id === 'admin' ? 'ADMIN' : 'USER')
+  });
+
   return docs.map((d: any) => ({
-    ...d,
-    // author가 null일 경우 안전하게 처리
-    author: d.author || { name: '알 수 없음', position: '', department: '', avatar: '' },
-    // approvalLine이 null이거나 비어있을 경우 빈 배열 처리
+    id: d.id,
+    title: d.title,
+    templateId: d.template_id ?? d.templateId,
+    content: d.content,
+    author: normalizeUser(d.author),
+    status: d.status as ApprovalStatus,
+    createdAt: d.created_at ?? d.createdAt,
     approvalLine: (d.approvalLine || []).map((l: any) => ({
-      ...l,
-      // user가 null일 경우 안전하게 처리
-      user: l.user || { name: '알 수 없음', position: '', department: '', avatar: '' }
+      id: l.id,
+      user: normalizeUser(l.user),
+      status: l.status,
+      role: l.role,
+      comment: l.comment,
+      processedAt: l.processed_at ?? l.processedAt
     })),
-    // referenceUsers가 null이거나 비어있을 경우 빈 배열 처리
-    referenceUsers: (d.referenceUsers || []).map((r: any) => r.user || { name: '알 수 없음', position: '', department: '', avatar: '' }),
-    // attachments가 null이거나 비어있을 경우 빈 배열 처리
-    attachments: d.attachments || []
+    referenceUsers: (d.referenceUsers || []).map((r: any) => normalizeUser(r.user)),
+    attachments: (d.attachments || []).map((a: any) => ({
+      id: a.id,
+      name: a.name,
+      size: a.size,
+      type: a.type,
+      data: a.data
+    }))
   }));
 };
 
@@ -268,4 +289,3 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
 
   return true;
 };
-
