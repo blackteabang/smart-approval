@@ -97,6 +97,41 @@ const App: React.FC = () => {
     setActiveTab('chat');
   };
 
+  const ensureApprovalChatRoom = (doc: ApprovalDocument) => {
+    const roomId = `docchat-${doc.id}`;
+    const existing = chatRooms.find(r => r.id === roomId);
+    if (existing) return existing.id;
+
+    const participantMap = new Map<string, User>();
+    participantMap.set(doc.author.id, doc.author);
+    doc.approvalLine.forEach(line => participantMap.set(line.user.id, line.user));
+    const participants = Array.from(participantMap.values());
+
+    const createdAt = new Date().toISOString();
+    const systemMsg: any = {
+      id: `msg-${Date.now()}`,
+      senderId: 'system',
+      content: `결재 문서 채팅방이 생성되었습니다: ${doc.title}`,
+      timestamp: createdAt,
+      type: 'system'
+    };
+
+    const newRoom: ChatRoom = {
+      id: roomId,
+      name: `${doc.title} 결재 채팅`,
+      participants,
+      messages: [systemMsg],
+      relatedDocId: doc.id,
+      createdAt,
+      lastMessage: systemMsg.content,
+      lastMessageTime: createdAt,
+      unreadCount: 0
+    };
+
+    setChatRooms(prev => [newRoom, ...prev]);
+    return newRoom.id;
+  };
+
   /**
    * 채팅 메시지 전송
    */
@@ -186,7 +221,7 @@ const App: React.FC = () => {
   /**
    * 결재 문서 생성 (기안)
    */
-  const handleCreateDocument = async (doc: ApprovalDocument) => {
+  const handleCreateDocument = async (doc: ApprovalDocument): Promise<boolean> => {
     const success = await createDocument(doc);
     if (success) {
       const docs = await getDocuments();
@@ -194,6 +229,7 @@ const App: React.FC = () => {
       setActiveTab('documents');
       setActiveDocTab('drafts'); // 내가 쓴 문서함으로 이동
     }
+    return success;
   };
 
   /**
@@ -375,7 +411,10 @@ const App: React.FC = () => {
                 attachments
               };
 
-              await handleCreateDocument(newDoc);
+              const success = await handleCreateDocument(newDoc);
+              if (success) {
+                ensureApprovalChatRoom(newDoc);
+              }
               setPreSelectedTemplateId(null);
             }}
           />
