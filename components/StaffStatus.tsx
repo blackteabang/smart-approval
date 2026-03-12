@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User } from '../types';
 
 interface StaffStatusProps {
@@ -7,6 +7,8 @@ interface StaffStatusProps {
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
   onStartChat: (user: User) => void;
+  editUserId?: string | null;
+  onEditUserIdConsumed?: () => void;
 }
 
 interface EditUserModalProps {
@@ -171,9 +173,21 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
 /**
  * 직원 현황 및 조직도 컴포넌트
  */
-const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateUser, onDeleteUser, onStartChat }) => {
+const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateUser, onDeleteUser, onStartChat, editUserId, onEditUserIdConsumed }) => {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!editUserId) return;
+    const target = users.find(u => u.id === editUserId);
+    if (!target) {
+      onEditUserIdConsumed?.();
+      return;
+    }
+    setSelectedDept(target.department);
+    setEditingUser(target);
+    onEditUserIdConsumed?.();
+  }, [editUserId, users, onEditUserIdConsumed]);
 
   // 부서 목록 추출
   const departments = Array.from(new Set(users.map(u => u.department))).sort();

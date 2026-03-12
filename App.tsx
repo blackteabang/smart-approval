@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [preSelectedTemplateId, setPreSelectedTemplateId] = useState<string | null>(null);
+  const [staffEditUserId, setStaffEditUserId] = useState<string | null>(null);
 
   // 초기 데이터 로드 (DB 또는 LocalStorage)
   useEffect(() => {
@@ -230,6 +231,13 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
+  const handleMyInfoEdit = () => {
+    if (!currentUser) return;
+    setIsProfileMenuOpen(false);
+    setActiveTab('staff');
+    setStaffEditUserId(currentUser.id);
+  };
+
   /**
    * 회원가입 처리
    */
@@ -411,7 +419,7 @@ const App: React.FC = () => {
               
               {isProfileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                  <button className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">내 정보 수정</button>
+                  <button onClick={handleMyInfoEdit} className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">내 정보 수정</button>
                   <button className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">환경설정</button>
                   <div className="h-px bg-slate-100 my-1"></div>
                   <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 font-bold">로그아웃</button>
@@ -641,6 +649,8 @@ const App: React.FC = () => {
             onDeleteUser={handleDeleteUser}
             currentUser={currentUser!}
             onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
+            editUserId={staffEditUserId}
+            onEditUserIdConsumed={() => setStaffEditUserId(null)}
           />
         )}
         
