@@ -41,7 +41,19 @@ export const getUsers = async (): Promise<User[]> => {
     console.error('Error fetching users from Supabase, falling back to local storage:', error);
     return getLocalUsers();
   }
-  return data || [];
+  let users = (data || []).map((u: any) => ({
+    ...u,
+    role: u?.role || (u?.id === 'admin' ? 'ADMIN' : 'USER')
+  })) as User[];
+
+  const existingIds = new Set(users.map(u => u.id));
+  const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+  if (missingMocks.length > 0) {
+    users = [...users, ...missingMocks];
+    localStorage.setItem('smartapprove_users', JSON.stringify(users));
+  }
+
+  return users;
 };
 
 /**
