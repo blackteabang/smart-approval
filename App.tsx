@@ -24,7 +24,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [mockUsers, setMockUsers] = useState<User[]>(MOCK_USERS);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'all'>('approvals'); // 문서함 서브 탭
+  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'withdrawn' | 'all'>('approvals'); // 문서함 서브 탭
   const [documents, setDocuments] = useState<ApprovalDocument[]>(MOCK_DOCUMENTS);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CHATS);
@@ -497,6 +497,14 @@ const App: React.FC = () => {
               >
                 👀 참조문서함
               </button>
+              <button 
+                onClick={() => setActiveDocTab('withdrawn')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                  activeDocTab === 'withdrawn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                🗂 회수문서함
+              </button>
               {currentUser?.role === 'ADMIN' && (
                 <button 
                   onClick={() => setActiveDocTab('all')}
@@ -537,6 +545,9 @@ const App: React.FC = () => {
                       filteredDocs = documents.filter(d => 
                         d.referenceUsers.some(u => u.id === currentUser?.id)
                       );
+                    } else if (activeDocTab === 'withdrawn') {
+                      titleText = '회수문서함';
+                      filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
                     } else if (activeDocTab === 'all') {
                       titleText = '전체 문서 관리';
                       filteredDocs = documents;
