@@ -553,7 +553,7 @@ const App: React.FC = () => {
                       filteredDocs = documents;
                     } else {
                       titleText = '기안문서함';
-                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id);
+                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
                     }
 
                     if (filteredDocs.length === 0) {
