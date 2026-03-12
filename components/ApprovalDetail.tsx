@@ -48,9 +48,9 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
           ? `현재 ${pendingIndex + 1}차 ${pendingLine.role === 'AGREEMENT' ? '합의' : '결재'} 대기: ${pendingLine.user?.name || ''} ${pendingLine.user?.position || ''}`.trim()
           : `대기 단계 없음 (${approvedCount}/${approvalLine.length})`;
   const fullLineText = [
-    `기안: ${doc.author?.name || ''} ${doc.author?.position || ''}`.trim(),
+    `${doc.author?.name || ''} ${doc.author?.position || ''}`.trim(),
     ...approvalLine.map((l, idx) => `${idx + 1}차 ${l.role === 'AGREEMENT' ? '합의' : '결재'}: ${l.user?.name || ''} ${l.user?.position || ''}`.trim())
-  ].join(' → ');
+  ].filter(Boolean).join(' → ');
   const handleApprove = () => {
     const comment = window.prompt('결재 의견(선택)을 입력하세요.', '') ?? '';
     onApprove(doc.id, comment);

@@ -118,6 +118,9 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
     return saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
   }
 
+  const savedLocal = localStorage.getItem('smartapprove_docs');
+  const localDocs: ApprovalDocument[] = savedLocal ? JSON.parse(savedLocal) : [];
+
   // 문서와 관련된 정보(작성자, 결재선, 참조자, 첨부파일)를 함께 조회
   const { data: docs, error } = await supabase!.from('documents').select(`
     *,
@@ -130,8 +133,7 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
   if (error) {
     console.error('Error fetching documents:', error);
     // Supabase 조회 실패 시 로컬 스토리지 데이터 반환 (백업 데이터)
-    const saved = localStorage.getItem('smartapprove_docs');
-    return saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
+    return localDocs.length > 0 ? localDocs : MOCK_DOCUMENTS;
   }
 
   // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
@@ -146,7 +148,7 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
     role: u?.role ?? (u?.id === 'admin' ? 'ADMIN' : 'USER')
   });
 
-  return docs.map((d: any) => ({
+  const dbDocs: ApprovalDocument[] = docs.map((d: any) => ({
     id: d.id,
     title: d.title,
     templateId: d.template_id ?? d.templateId,
@@ -171,6 +173,22 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
       data: a.data
     }))
   }));
+
+  const localById = new Map(localDocs.map(d => [d.id, d]));
+  const merged = dbDocs.map(d => {
+    const local = localById.get(d.id);
+    if (!local) return d;
+    return {
+      ...d,
+      approvalLine: d.approvalLine.length > 0 ? d.approvalLine : (local.approvalLine || []),
+      referenceUsers: d.referenceUsers.length > 0 ? d.referenceUsers : (local.referenceUsers || []),
+      attachments: d.attachments.length > 0 ? d.attachments : (local.attachments || []),
+    };
+  });
+
+  const mergedIds = new Set(merged.map(d => d.id));
+  const onlyLocal = localDocs.filter(d => !mergedIds.has(d.id));
+  return [...onlyLocal, ...merged];
 };
 
 /**
@@ -193,6 +211,7 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
     return saveLocalDocument(doc);
   }
 
+  let insertedDoc = false;
   try {
     // 1. 문서 기본 정보 저장
     const { error: docError } = await supabase!.from('documents').insert({
@@ -209,6 +228,7 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
       console.error('Error creating document in Supabase:', docError);
       throw docError;
     }
+    insertedDoc = true;
 
     // 2. 결재선 정보 저장
     const lines = doc.approvalLine.map((l, index) => ({
@@ -249,6 +269,12 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
     return true;
   } catch (error) {
     console.error('Failed to create document in Supabase, falling back to local storage:', error);
+    if (insertedDoc) {
+      try {
+        await supabase!.from('documents').delete().eq('id', doc.id);
+      } catch {
+      }
+    }
     // DB 저장 실패 시 로컬 스토리지에 저장 (데이터 유실 방지)
     return saveLocalDocument(doc);
   }
