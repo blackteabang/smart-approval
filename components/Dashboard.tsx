@@ -98,9 +98,10 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   doc.status === ApprovalStatus.APPROVED ? 'bg-green-100 text-green-700' :
                   doc.status === ApprovalStatus.REJECTED ? 'bg-red-100 text-red-700' :
+                  doc.status === ApprovalStatus.WITHDRAWN ? 'bg-slate-100 text-slate-700' :
                   'bg-blue-100 text-blue-700'
                 }`}>
-                  {doc.status === ApprovalStatus.APPROVED ? '승인' : doc.status === ApprovalStatus.REJECTED ? '반려' : '진행중'}
+                  {doc.status === ApprovalStatus.APPROVED ? '승인' : doc.status === ApprovalStatus.REJECTED ? '반려' : doc.status === ApprovalStatus.WITHDRAWN ? '회수' : '진행중'}
                 </span>
               </div>
             ))}

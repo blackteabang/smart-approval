@@ -171,6 +171,25 @@ const App: React.FC = () => {
     }));
   };
 
+  const withdrawDocument = async (docId: string) => {
+    if (!currentUser) return;
+    const doc = documents.find(d => d.id === docId);
+    if (!doc) return;
+    const canWithdraw =
+      doc.author.id === currentUser.id &&
+      doc.status === ApprovalStatus.PENDING &&
+      doc.approvalLine.every(l => l.status === 'PENDING');
+    if (!canWithdraw) {
+      alert('첫 결재가 진행된 문서는 기안취소할 수 없습니다.');
+      return;
+    }
+    const ok = window.confirm('기안취소 하시겠습니까?');
+    if (!ok) return;
+    await updateDocumentStatus(docId, ApprovalStatus.WITHDRAWN, doc.approvalLine);
+    const docs = await getDocuments();
+    setDocuments(docs);
+  };
+
   /**
    * 채팅방 초대 처리
    */
@@ -314,6 +333,23 @@ const App: React.FC = () => {
           });
 
           await updateDocumentStatus(docId, ApprovalStatus.REJECTED, updatedLine);
+          const docs = await getDocuments();
+          setDocuments(docs);
+          setSelectedDoc(null);
+        }}
+        onWithdraw={async (docId) => {
+          if (!currentUser) return;
+          const doc = documents.find(d => d.id === docId);
+          if (!doc) return;
+          const canWithdraw =
+            doc.author.id === currentUser.id &&
+            doc.status === ApprovalStatus.PENDING &&
+            doc.approvalLine.every(l => l.status === 'PENDING');
+          if (!canWithdraw) {
+            alert('첫 결재가 진행된 문서는 기안취소할 수 없습니다.');
+            return;
+          }
+          await updateDocumentStatus(docId, ApprovalStatus.WITHDRAWN, doc.approvalLine);
           const docs = await getDocuments();
           setDocuments(docs);
           setSelectedDoc(null);
@@ -483,6 +519,7 @@ const App: React.FC = () => {
                     <th className="p-4 w-32">기안자</th>
                     <th className="p-4 w-32">기안일</th>
                     <th className="p-4 w-24 text-center">결재진행</th>
+                    <th className="p-4 w-28 text-center">작업</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -511,7 +548,7 @@ const App: React.FC = () => {
                     if (filteredDocs.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={5} className="p-12 text-center text-slate-400 font-medium">
+                          <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
                             문서가 없습니다.
                           </td>
                         </tr>
@@ -529,9 +566,10 @@ const App: React.FC = () => {
                             px-2 py-1 rounded-md text-[10px] font-bold border
                             ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
                               doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                              doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
                               'bg-yellow-50 text-yellow-600 border-yellow-100'}
                           `}>
-                            {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : '진행중'}
+                            {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
                           </span>
                         </td>
                         <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
@@ -558,6 +596,23 @@ const App: React.FC = () => {
                               </div>
                             ))}
                           </div>
+                        </td>
+                        <td className="p-4 text-center">
+                          {(() => {
+                            const canWithdraw =
+                              doc.author.id === currentUser?.id &&
+                              doc.status === ApprovalStatus.PENDING &&
+                              doc.approvalLine.every(l => l.status === 'PENDING');
+                            if (!canWithdraw) return null;
+                            return (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
+                                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                              >
+                                기안취소
+                              </button>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ));

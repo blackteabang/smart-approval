@@ -8,9 +8,10 @@ interface ApprovalDetailProps {
   onClose: () => void;
   onApprove: (docId: string, comment: string) => void;
   onReject: (docId: string, comment: string) => void;
+  onWithdraw: (docId: string) => void;
 }
 
-const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentUser, onClose, onApprove, onReject }) => {
+const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentUser, onClose, onApprove, onReject, onWithdraw }) => {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -30,6 +31,10 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
 
   const activeStep = doc.approvalLine?.find(line => line.status === 'PENDING');
   const isMyTurn = activeStep?.user?.id === currentUser.id && doc.status === ApprovalStatus.PENDING;
+  const canWithdraw =
+    doc.author?.id === currentUser.id &&
+    doc.status === ApprovalStatus.PENDING &&
+    (doc.approvalLine || []).every(l => l.status === 'PENDING');
   const handleApprove = () => {
     const comment = window.prompt('결재 의견(선택)을 입력하세요.', '') ?? '';
     onApprove(doc.id, comment);
@@ -37,6 +42,11 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
   const handleReject = () => {
     const comment = window.prompt('반려 사유(선택)을 입력하세요.', '') ?? '';
     onReject(doc.id, comment);
+  };
+  const handleWithdraw = () => {
+    const ok = window.confirm('첫 결재가 진행되기 전까지만 기안취소가 가능합니다.\n기안취소 하시겠습니까?');
+    if (!ok) return;
+    onWithdraw(doc.id);
   };
 
   return (
@@ -141,6 +151,14 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
         </div>
 
         <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+          {canWithdraw && (
+            <button
+              onClick={handleWithdraw}
+              className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-100 transition-colors shadow-sm"
+            >
+              기안취소
+            </button>
+          )}
           {isMyTurn ? (
             <>
               <button 
@@ -160,6 +178,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
             <p className="mr-auto self-center text-sm font-medium text-slate-400 italic">
               {doc.status === ApprovalStatus.APPROVED ? '이미 승인 완료된 문서입니다.' : 
                doc.status === ApprovalStatus.REJECTED ? '반려된 문서입니다.' : 
+               doc.status === ApprovalStatus.WITHDRAWN ? '회수된 문서입니다.' :
                '현재 본인의 결재 순서가 아닙니다.'}
             </p>
           )}
