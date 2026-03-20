@@ -395,21 +395,23 @@ const App: React.FC = () => {
       />
       
       <main className="flex-1 p-4 md:p-8 md:h-screen h-[100dvh] flex flex-col overflow-hidden">
-        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">
-              {activeTab === 'dashboard' && '대시보드'}
-              {activeTab === 'chat' && '채팅'}
-              {activeTab === 'draft' && '전자결재 작성'}
-              {activeTab === 'documents' && '전자결재 문서함'}
-              {activeTab === 'staff' && '직원현황'}
-              {activeTab === 'admin' && '관리자 설정'}
-            </h2>
-            <p className="text-slate-500 text-sm mt-1">
-              오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
+        <header className="mb-6 md:mb-8">
+          <div className="flex items-start md:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-slate-800">
+                {activeTab === 'dashboard' && '대시보드'}
+                {activeTab === 'chat' && '채팅'}
+                {activeTab === 'draft' && '전자결재 작성'}
+                {activeTab === 'documents' && '전자결재 문서함'}
+                {activeTab === 'staff' && '직원현황'}
+                {activeTab === 'admin' && '관리자 설정'}
+              </h2>
+              <p className="hidden md:block text-slate-500 text-sm mt-1">
+                오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 flex-shrink-0">
             <div className="relative">
                <button className="p-2 bg-white rounded-full text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors relative">
                  🔔
@@ -419,7 +421,7 @@ const App: React.FC = () => {
             <div className="relative">
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-3 bg-white pl-2 pr-4 py-1.5 rounded-full border border-slate-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 md:gap-3 bg-white pl-2 pr-3 md:pr-4 py-1.5 rounded-full border border-slate-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md"
               >
                 <img 
                   src={currentUser.avatar} 
@@ -428,7 +430,7 @@ const App: React.FC = () => {
                 />
                 <div className="text-left">
                   <div className="text-xs font-bold text-slate-700">{currentUser.name}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{currentUser.department}</div>
+                  <div className="hidden md:block text-[10px] text-slate-400 font-medium">{currentUser.department}</div>
                 </div>
                 <span className="text-slate-300 text-xs">▼</span>
               </button>
@@ -443,6 +445,10 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
+          </div>
+          <p className="md:hidden text-slate-500 text-xs mt-2">
+            오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
+          </p>
         </header>
 
         <div className={contentClass}>
