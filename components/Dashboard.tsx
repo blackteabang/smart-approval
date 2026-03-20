@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { ApprovalDocument, ApprovalStatus, User, TabType } from '../types';
+import { formatUserNameWithPosition } from '../utils/userDisplay';
 
 interface DashboardProps {
   documents: ApprovalDocument[];
@@ -55,7 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({ documents, onSelectDoc, currentUs
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">안녕하세요, {currentUser.name} {currentUser.position}님 👋</h2>
+        <h2 className="text-2xl font-bold text-slate-800">안녕하세요, {formatUserNameWithPosition(currentUser)}님 👋</h2>
         <p className="text-slate-500">실시간 결재 현황과 할 일을 확인하세요.</p>
       </div>
 

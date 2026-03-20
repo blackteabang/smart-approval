@@ -11,6 +11,7 @@ import AdminUserManagement from './components/AdminUserManagement';
 import { TabType, ApprovalDocument, ApprovalStatus, User, ApprovalLine, ApprovalRole, Attachment, ChatRoom } from './types';
 import { MOCK_DOCUMENTS, MOCK_USERS, TEMPLATES } from './constants';
 import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser, deleteUser } from './services/dbService';
+import { formatUserNameWithPosition, positionIfNotDuplicated } from './utils/userDisplay';
 
 const STORAGE_KEY_CHATS = 'smartapprove_chats';
 
@@ -407,7 +408,7 @@ const App: React.FC = () => {
                 {activeTab === 'admin' && '관리자 설정'}
               </h2>
               <p className="hidden md:block text-slate-500 text-sm mt-1">
-                오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
+                오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{formatUserNameWithPosition(currentUser)}님</span>!
               </p>
             </div>
 
@@ -447,7 +448,7 @@ const App: React.FC = () => {
           </div>
           </div>
           <p className="md:hidden text-slate-500 text-xs mt-2">
-            오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{currentUser.name} {currentUser.position}님</span>!
+            오늘도 좋은 하루 되세요, <span className="font-bold text-blue-600">{formatUserNameWithPosition(currentUser)}님</span>!
           </p>
         </header>
 
@@ -612,9 +613,12 @@ const App: React.FC = () => {
                             <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
                               {doc.title}
                             </td>
-                            <td className="p-4 text-sm text-slate-600">
-                              {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
-                            </td>
+                          <td className="p-4 text-sm text-slate-600">
+                            {doc.author.name}
+                            {positionIfNotDuplicated(doc.author) ? (
+                              <span className="text-xs text-slate-400"> {positionIfNotDuplicated(doc.author)}</span>
+                            ) : null}
+                          </td>
                             <td className="p-4 text-sm text-slate-500">
                               {new Date(doc.createdAt).toLocaleDateString()}
                             </td>
@@ -717,9 +721,9 @@ const App: React.FC = () => {
                               <div className="font-bold text-slate-800 truncate">
                                 {doc.title}
                               </div>
-                              <div className="text-xs text-slate-500 mt-1">
-                                {doc.author.name} {doc.author.position}
-                              </div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {formatUserNameWithPosition(doc.author)}
+                            </div>
                             </div>
 
                             {canWithdraw && (

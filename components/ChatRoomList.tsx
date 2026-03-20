@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChatRoom, User, ChatMessage } from '../types';
 import UserPicker from './UserPicker';
+import { formatUserNameWithPosition } from '../utils/userDisplay';
 
 interface ChatRoomListProps {
   currentUser: User;
@@ -41,7 +42,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const getRoomDisplayName = (room: ChatRoom) => {
     if (room.participants.length <= 2) {
       const other = room.participants.find(p => p.id !== currentUser.id);
-      return other ? `${other.name} ${other.position}` : room.name;
+      return other ? formatUserNameWithPosition(other) : room.name;
     }
     return room.name;
   };

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ApprovalDocument, ApprovalStatus, User } from '../types';
+import { formatUserNameWithPosition } from '../utils/userDisplay';
 
 interface ApprovalDetailProps {
   document: ApprovalDocument;
@@ -74,7 +75,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
                   {doc.author?.avatar ? <img src={doc.author.avatar} alt="" /> : doc.author?.name?.charAt(0) || '?'}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">{doc.author?.name} {doc.author?.position}</p>
+                  <p className="font-bold text-slate-900">{formatUserNameWithPosition(doc.author)}</p>
                   <p className="text-sm text-slate-500">{doc.author?.department} · {new Date(doc.createdAt).toLocaleString()}</p>
                 </div>
               </div>
