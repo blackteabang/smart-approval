@@ -222,7 +222,7 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
+      <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
         <input 
           type="file" 
           ref={fileInputRef}

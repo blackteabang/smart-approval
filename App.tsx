@@ -377,6 +377,11 @@ const App: React.FC = () => {
     mobileNavItems.push({ id: 'admin', label: '관리', icon: '⚙️' });
   }
 
+  const contentClass =
+    activeTab === 'chat'
+      ? 'flex-1 min-h-0 overflow-hidden pb-16 md:pb-0'
+      : 'flex-1 min-h-0 overflow-y-auto pb-24 md:pb-0';
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 font-sans text-slate-900">
       <Sidebar 
@@ -389,7 +394,7 @@ const App: React.FC = () => {
         currentUser={currentUser}
       />
       
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto md:h-screen pb-24 md:pb-8">
+      <main className="flex-1 p-4 md:p-8 md:h-screen h-[100dvh] flex flex-col overflow-hidden">
         <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">
@@ -440,175 +445,290 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* 탭별 컨텐츠 렌더링 */}
-        {activeTab === 'dashboard' && (
-          <Dashboard 
-            currentUser={currentUser}
-            documents={documents}
-            onNavigate={(tab) => setActiveTab(tab)}
-            onSelectDoc={(doc) => setSelectedDoc(doc)}
-            onSelectTemplate={(templateId) => {
-              setPreSelectedTemplateId(templateId);
-              setActiveTab('draft');
-            }}
-          />
-        )}
+        <div className={contentClass}>
+          {/* 탭별 컨텐츠 렌더링 */}
+          {activeTab === 'dashboard' && (
+            <Dashboard 
+              currentUser={currentUser}
+              documents={documents}
+              onNavigate={(tab) => setActiveTab(tab)}
+              onSelectDoc={(doc) => setSelectedDoc(doc)}
+              onSelectTemplate={(templateId) => {
+                setPreSelectedTemplateId(templateId);
+                setActiveTab('draft');
+              }}
+            />
+          )}
 
-        {activeTab === 'draft' && (
-          <DraftView 
-            users={mockUsers}
-            preSelectedTemplateId={preSelectedTemplateId}
-            onSubmit={async (title, content, templateId, approvalLine, referenceUsers, attachments) => {
-              if (!currentUser) return;
+          {activeTab === 'draft' && (
+            <DraftView 
+              users={mockUsers}
+              preSelectedTemplateId={preSelectedTemplateId}
+              onSubmit={async (title, content, templateId, approvalLine, referenceUsers, attachments) => {
+                if (!currentUser) return;
 
-              const newDoc: ApprovalDocument = {
-                id: `doc-${Date.now()}`,
-                title,
-                templateId,
-                content,
-                author: currentUser,
-                status: ApprovalStatus.PENDING,
-                createdAt: new Date().toISOString(),
-                approvalLine: approvalLine.map((item, index) => ({
-                  id: `line-${Date.now()}-${index}`,
-                  user: item.user,
-                  status: 'PENDING',
-                  role: item.role
-                })),
-                referenceUsers,
-                attachments
-              };
+                const newDoc: ApprovalDocument = {
+                  id: `doc-${Date.now()}`,
+                  title,
+                  templateId,
+                  content,
+                  author: currentUser,
+                  status: ApprovalStatus.PENDING,
+                  createdAt: new Date().toISOString(),
+                  approvalLine: approvalLine.map((item, index) => ({
+                    id: `line-${Date.now()}-${index}`,
+                    user: item.user,
+                    status: 'PENDING',
+                    role: item.role
+                  })),
+                  referenceUsers,
+                  attachments
+                };
 
-              const success = await handleCreateDocument(newDoc);
-              if (success) {
-                ensureApprovalChatRoom(newDoc);
-              }
-              setPreSelectedTemplateId(null);
-            }}
-          />
-        )}
+                const success = await handleCreateDocument(newDoc);
+                if (success) {
+                  ensureApprovalChatRoom(newDoc);
+                }
+                setPreSelectedTemplateId(null);
+              }}
+            />
+          )}
 
-        {activeTab === 'documents' && (
-          <div className="space-y-6">
-            {/* 문서함 탭 */}
-            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-full overflow-x-auto whitespace-nowrap">
-              <button 
-                onClick={() => setActiveDocTab('approvals')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeDocTab === 'approvals' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                📥 결재대기문서
-              </button>
-              <button 
-                onClick={() => setActiveDocTab('drafts')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeDocTab === 'drafts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                📤 기안문서함
-              </button>
-              <button 
-                onClick={() => setActiveDocTab('references')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeDocTab === 'references' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                👀 참조문서함
-              </button>
-              <button 
-                onClick={() => setActiveDocTab('withdrawn')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeDocTab === 'withdrawn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                🗂 회수문서함
-              </button>
-              {currentUser?.role === 'ADMIN' && (
+          {activeTab === 'documents' && (
+            <div className="space-y-6">
+              {/* 문서함 탭 */}
+              <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-full overflow-x-auto whitespace-nowrap">
                 <button 
-                  onClick={() => setActiveDocTab('all')}
+                  onClick={() => setActiveDocTab('approvals')}
                   className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                    activeDocTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    activeDocTab === 'approvals' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  🔐 전체 문서
+                  📥 결재대기문서
                 </button>
-              )}
-            </div>
+                <button 
+                  onClick={() => setActiveDocTab('drafts')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                    activeDocTab === 'drafts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  📤 기안문서함
+                </button>
+                <button 
+                  onClick={() => setActiveDocTab('references')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                    activeDocTab === 'references' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  👀 참조문서함
+                </button>
+                <button 
+                  onClick={() => setActiveDocTab('withdrawn')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                    activeDocTab === 'withdrawn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  🗂 회수문서함
+                </button>
+                {currentUser?.role === 'ADMIN' && (
+                  <button 
+                    onClick={() => setActiveDocTab('all')}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                      activeDocTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    🔐 전체 문서
+                  </button>
+                )}
+              </div>
 
-            {/* 문서 목록 */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="hidden md:block">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-bold">
-                      <th className="p-4 w-20 text-center">상태</th>
-                      <th className="p-4">제목</th>
-                      <th className="p-4 w-32">기안자</th>
-                      <th className="p-4 w-32">기안일</th>
-                      <th className="p-4 w-24 text-center">결재진행</th>
-                      <th className="p-4 w-28 text-center">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(() => {
-                      let filteredDocs = [];
+              {/* 문서 목록 */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="hidden md:block">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-bold">
+                        <th className="p-4 w-20 text-center">상태</th>
+                        <th className="p-4">제목</th>
+                        <th className="p-4 w-32">기안자</th>
+                        <th className="p-4 w-32">기안일</th>
+                        <th className="p-4 w-24 text-center">결재진행</th>
+                        <th className="p-4 w-28 text-center">작업</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(() => {
+                        let filteredDocs = [];
 
-                      if (activeDocTab === 'approvals') {
-                        filteredDocs = documents.filter(doc => 
-                          doc.approvalLine.some(line => line.user.id === currentUser?.id)
-                        );
-                      } else if (activeDocTab === 'references') {
-                        filteredDocs = documents.filter(d => 
-                          d.referenceUsers.some(u => u.id === currentUser?.id)
-                        );
-                      } else if (activeDocTab === 'withdrawn') {
-                        filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
-                      } else if (activeDocTab === 'all') {
-                        filteredDocs = documents;
-                      } else {
-                        filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
-                      }
+                        if (activeDocTab === 'approvals') {
+                          filteredDocs = documents.filter(doc => 
+                            doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                          );
+                        } else if (activeDocTab === 'references') {
+                          filteredDocs = documents.filter(d => 
+                            d.referenceUsers.some(u => u.id === currentUser?.id)
+                          );
+                        } else if (activeDocTab === 'withdrawn') {
+                          filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
+                        } else if (activeDocTab === 'all') {
+                          filteredDocs = documents;
+                        } else {
+                          filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
+                        }
 
-                      if (filteredDocs.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
-                              문서가 없습니다.
+                        if (filteredDocs.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
+                                문서가 없습니다.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filteredDocs.map(doc => (
+                          <tr 
+                            key={doc.id} 
+                            onClick={() => setSelectedDoc(doc)}
+                            className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                          >
+                            <td className="p-4 text-center">
+                              <span className={`
+                                px-2 py-1 rounded-md text-[10px] font-bold border
+                                ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
+                                  doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                                  doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                  'bg-yellow-50 text-yellow-600 border-yellow-100'}
+                              `}>
+                                {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
+                              </span>
+                            </td>
+                            <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
+                              {doc.title}
+                            </td>
+                            <td className="p-4 text-sm text-slate-600">
+                              {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
+                            </td>
+                            <td className="p-4 text-sm text-slate-500">
+                              {new Date(doc.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="p-4 text-center">
+                              <div className="flex justify-center -space-x-2">
+                                {doc.approvalLine.map((line, i) => (
+                                  <div 
+                                    key={i} 
+                                    className={`
+                                      w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold
+                                      ${line.status === 'APPROVED' ? 'bg-green-500' : line.status === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'}
+                                    `}
+                                    title={`${line.user.name} (${line.status})`}
+                                  >
+                                    {line.user.name[0]}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-4 text-center">
+                              {(() => {
+                                const canWithdraw =
+                                  doc.author.id === currentUser?.id &&
+                                  doc.status === ApprovalStatus.PENDING &&
+                                  doc.approvalLine.every(l => l.status === 'PENDING');
+                                if (!canWithdraw) return null;
+                                return (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                  >
+                                    기안취소
+                                  </button>
+                                );
+                              })()}
                             </td>
                           </tr>
-                        );
-                      }
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
 
-                      return filteredDocs.map(doc => (
-                        <tr 
-                          key={doc.id} 
+                <div className="md:hidden divide-y divide-slate-100">
+                  {(() => {
+                    let filteredDocs = [];
+
+                    if (activeDocTab === 'approvals') {
+                      filteredDocs = documents.filter(doc => 
+                        doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                      );
+                    } else if (activeDocTab === 'references') {
+                      filteredDocs = documents.filter(d => 
+                        d.referenceUsers.some(u => u.id === currentUser?.id)
+                      );
+                    } else if (activeDocTab === 'withdrawn') {
+                      filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
+                    } else if (activeDocTab === 'all') {
+                      filteredDocs = documents;
+                    } else {
+                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
+                    }
+
+                    if (filteredDocs.length === 0) {
+                      return (
+                        <div className="p-10 text-center text-slate-400 font-medium">
+                          문서가 없습니다.
+                        </div>
+                      );
+                    }
+
+                    return filteredDocs.map(doc => {
+                      const canWithdraw =
+                        doc.author.id === currentUser?.id &&
+                        doc.status === ApprovalStatus.PENDING &&
+                        doc.approvalLine.every(l => l.status === 'PENDING');
+
+                      return (
+                        <button
+                          key={doc.id}
                           onClick={() => setSelectedDoc(doc)}
-                          className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                          className="w-full text-left p-4 active:bg-slate-50"
                         >
-                          <td className="p-4 text-center">
-                            <span className={`
-                              px-2 py-1 rounded-md text-[10px] font-bold border
-                              ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
-                                doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
-                                doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                                'bg-yellow-50 text-yellow-600 border-yellow-100'}
-                            `}>
-                              {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
-                            </span>
-                          </td>
-                          <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
-                            {doc.title}
-                          </td>
-                          <td className="p-4 text-sm text-slate-600">
-                            {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
-                          </td>
-                          <td className="p-4 text-sm text-slate-500">
-                            {new Date(doc.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="p-4 text-center">
-                            <div className="flex justify-center -space-x-2">
-                              {doc.approvalLine.map((line, i) => (
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`
+                                  px-2 py-0.5 rounded-md text-[10px] font-bold border
+                                  ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
+                                    doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                                    doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                    'bg-yellow-50 text-yellow-600 border-yellow-100'}
+                                `}>
+                                  {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
+                                </span>
+                                <div className="text-[10px] text-slate-400 font-medium">
+                                  {new Date(doc.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <div className="font-bold text-slate-800 truncate">
+                                {doc.title}
+                              </div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                {doc.author.name} {doc.author.position}
+                              </div>
+                            </div>
+
+                            {canWithdraw && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
+                                className="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                              >
+                                기안취소
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex -space-x-2">
+                              {doc.approvalLine.slice(0, 6).map((line, i) => (
                                 <div 
                                   key={i} 
                                   className={`
@@ -621,178 +741,65 @@ const App: React.FC = () => {
                                 </div>
                               ))}
                             </div>
-                          </td>
-                          <td className="p-4 text-center">
-                            {(() => {
-                              const canWithdraw =
-                                doc.author.id === currentUser?.id &&
-                                doc.status === ApprovalStatus.PENDING &&
-                                doc.approvalLine.every(l => l.status === 'PENDING');
-                              if (!canWithdraw) return null;
-                              return (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
-                                  className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
-                                >
-                                  기안취소
-                                </button>
-                              );
-                            })()}
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="md:hidden divide-y divide-slate-100">
-                {(() => {
-                  let filteredDocs = [];
-
-                  if (activeDocTab === 'approvals') {
-                    filteredDocs = documents.filter(doc => 
-                      doc.approvalLine.some(line => line.user.id === currentUser?.id)
-                    );
-                  } else if (activeDocTab === 'references') {
-                    filteredDocs = documents.filter(d => 
-                      d.referenceUsers.some(u => u.id === currentUser?.id)
-                    );
-                  } else if (activeDocTab === 'withdrawn') {
-                    filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
-                  } else if (activeDocTab === 'all') {
-                    filteredDocs = documents;
-                  } else {
-                    filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
-                  }
-
-                  if (filteredDocs.length === 0) {
-                    return (
-                      <div className="p-10 text-center text-slate-400 font-medium">
-                        문서가 없습니다.
-                      </div>
-                    );
-                  }
-
-                  return filteredDocs.map(doc => {
-                    const canWithdraw =
-                      doc.author.id === currentUser?.id &&
-                      doc.status === ApprovalStatus.PENDING &&
-                      doc.approvalLine.every(l => l.status === 'PENDING');
-
-                    return (
-                      <button
-                        key={doc.id}
-                        onClick={() => setSelectedDoc(doc)}
-                        className="w-full text-left p-4 active:bg-slate-50"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`
-                                px-2 py-0.5 rounded-md text-[10px] font-bold border
-                                ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
-                                  doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
-                                  doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                                  'bg-yellow-50 text-yellow-600 border-yellow-100'}
-                              `}>
-                                {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
-                              </span>
-                              <div className="text-[10px] text-slate-400 font-medium">
-                                {new Date(doc.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <div className="font-bold text-slate-800 truncate">
-                              {doc.title}
-                            </div>
-                            <div className="text-xs text-slate-500 mt-1">
-                              {doc.author.name} {doc.author.position}
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              {doc.approvalLine.filter(l => l.status === 'APPROVED').length}/{doc.approvalLine.length}
                             </div>
                           </div>
-
-                          {canWithdraw && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
-                              className="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
-                            >
-                              기안취소
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex -space-x-2">
-                            {doc.approvalLine.slice(0, 6).map((line, i) => (
-                              <div 
-                                key={i} 
-                                className={`
-                                  w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold
-                                  ${line.status === 'APPROVED' ? 'bg-green-500' : line.status === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'}
-                                `}
-                                title={`${line.user.name} (${line.status})`}
-                              >
-                                {line.user.name[0]}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-medium">
-                            {doc.approvalLine.filter(l => l.status === 'APPROVED').length}/{doc.approvalLine.length}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  });
-                })()}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'staff' && (
-          <StaffStatus 
-            users={mockUsers} 
-            onUpdateUser={handleUpdateUser}
-            onDeleteUser={handleDeleteUser}
-            currentUser={currentUser!}
-            onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
-            editUserId={staffEditUserId}
-            onEditUserIdConsumed={() => setStaffEditUserId(null)}
-          />
-        )}
-        
-        {activeTab === 'chat' && (
-          <div className="h-full flex flex-col md:flex-row gap-6">
-            <div className={`${activeChatRoomId ? 'hidden md:block' : 'block'} md:block`}>
-              <ChatRoomList 
-                currentUser={currentUser!}
-                chatRooms={chatRooms}
-                activeRoomId={activeChatRoomId}
-                onSelectRoom={setActiveChatRoomId}
-                users={mockUsers}
-                onCreateRoom={handleCreateChatRoom}
-              />
-            </div>
-
-            {activeChatRoomId && chatRooms.find(r => r.id === activeChatRoomId) ? (
-              <ChatRoomDetail
-                currentUser={currentUser!}
-                users={mockUsers}
-                room={chatRooms.find(r => r.id === activeChatRoomId)!}
-                onSendMessage={handleSendMessage}
-                onInviteUser={handleInviteUser}
-                onClose={() => setActiveChatRoomId(null)}
-              />
-            ) : (
-              <div className="hidden md:flex flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm items-center justify-center text-slate-400">
-                채팅방을 선택하세요
+          {activeTab === 'staff' && (
+            <StaffStatus 
+              users={mockUsers} 
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
+              currentUser={currentUser!}
+              onStartChat={(user) => handleCreateChatRoom([user, currentUser!])}
+              editUserId={staffEditUserId}
+              onEditUserIdConsumed={() => setStaffEditUserId(null)}
+            />
+          )}
+          
+          {activeTab === 'chat' && (
+            <div className="h-full min-h-0 flex flex-col md:flex-row gap-6">
+              <div className={`${activeChatRoomId ? 'hidden md:block' : 'block'} md:block h-full`}>
+                <ChatRoomList 
+                  currentUser={currentUser!}
+                  chatRooms={chatRooms}
+                  activeRoomId={activeChatRoomId}
+                  onSelectRoom={setActiveChatRoomId}
+                  users={mockUsers}
+                  onCreateRoom={handleCreateChatRoom}
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        {activeTab === 'admin' && (
-          <AdminUserManagement />
-        )}
+              {activeChatRoomId && chatRooms.find(r => r.id === activeChatRoomId) ? (
+                <ChatRoomDetail
+                  currentUser={currentUser!}
+                  users={mockUsers}
+                  room={chatRooms.find(r => r.id === activeChatRoomId)!}
+                  onSendMessage={handleSendMessage}
+                  onInviteUser={handleInviteUser}
+                  onClose={() => setActiveChatRoomId(null)}
+                />
+              ) : (
+                <div className="hidden md:flex flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm items-center justify-center text-slate-400">
+                  채팅방을 선택하세요
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'admin' && (
+            <AdminUserManagement />
+          )}
+        </div>
       </main>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50">
