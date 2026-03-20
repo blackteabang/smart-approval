@@ -55,7 +55,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 w-80">
+    <div className="flex flex-col h-full bg-white md:border-r border-slate-200 w-full md:w-80">
       <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
         <h2 className="font-bold text-slate-800 text-lg">채팅 목록</h2>
         <button 

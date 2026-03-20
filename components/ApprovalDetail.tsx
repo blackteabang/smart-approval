@@ -51,7 +51,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-4xl h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-w-4xl h-[95vh] md:h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">문서번호: {doc.id}</span>
@@ -65,7 +65,7 @@ const ApprovalDetail: React.FC<ApprovalDetailProps> = ({ document: doc, currentU
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-10">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-slate-400 uppercase">기안 정보</h3>

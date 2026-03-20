@@ -101,7 +101,7 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 border-l border-slate-200 shadow-xl flex-1 max-w-2xl min-w-[320px] overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-50 md:border-l border-slate-200 shadow-xl flex-1 w-full md:max-w-2xl min-w-0 overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white flex-shrink-0">
         <div className="flex items-center gap-3">
           {room.participants.length > 2 ? (

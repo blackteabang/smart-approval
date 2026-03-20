@@ -151,9 +151,9 @@ const AdminUserManagement: React.FC = () => {
   if (loading) return <div className="p-8 text-center">로딩 중...</div>;
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-100px)]">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-[calc(100vh-100px)]">
       {/* 좌측: 부서별 조직도 트리 */}
-      <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+      <div className="w-full md:w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <span>🌳</span> 조직도
@@ -191,7 +191,7 @@ const AdminUserManagement: React.FC = () => {
 
       {/* 우측: 직원 목록 및 관리 액션 */}
       <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:justify-between md:items-center gap-3 bg-white">
           <h2 className="text-2xl font-bold text-gray-800">{selectedDept || '전체 직원'} 관리</h2>
           <div className="flex flex-wrap gap-3">
             <button 

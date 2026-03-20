@@ -29,7 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, cu
   }
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col sticky top-0 z-40 flex-shrink-0">
+    <aside className="hidden md:flex w-64 bg-white border-r border-slate-200 h-screen flex-col sticky top-0 z-40 flex-shrink-0">
       <div className="p-8">
         <h1 className="text-xl font-bold text-blue-600 flex items-center gap-2">
           <span className="text-2xl">⚡</span> 리맨전자결재

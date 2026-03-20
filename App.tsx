@@ -366,8 +366,19 @@ const App: React.FC = () => {
     );
   }
 
+  const mobileNavItems: { id: TabType; label: string; icon: string }[] = [
+    { id: 'dashboard', label: '대시보드', icon: '📊' },
+    { id: 'documents', label: '문서함', icon: '📁' },
+    { id: 'draft', label: '작성', icon: '✍️' },
+    { id: 'chat', label: '채팅', icon: '💬' },
+    { id: 'staff', label: '직원', icon: '👥' }
+  ];
+  if (currentUser?.role === 'ADMIN') {
+    mobileNavItems.push({ id: 'admin', label: '관리', icon: '⚙️' });
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 font-sans text-slate-900">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={(tab) => {
@@ -378,8 +389,8 @@ const App: React.FC = () => {
         currentUser={currentUser}
       />
       
-      <main className="flex-1 p-8 overflow-y-auto h-screen">
-        <header className="flex justify-between items-center mb-8">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto md:h-screen pb-24 md:pb-8">
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">
               {activeTab === 'dashboard' && '대시보드'}
@@ -480,7 +491,7 @@ const App: React.FC = () => {
         {activeTab === 'documents' && (
           <div className="space-y-6">
             {/* 문서함 탭 */}
-            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-fit">
+            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-full overflow-x-auto whitespace-nowrap">
               <button 
                 onClick={() => setActiveDocTab('approvals')}
                 className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
@@ -527,82 +538,191 @@ const App: React.FC = () => {
 
             {/* 문서 목록 */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-bold">
-                    <th className="p-4 w-20 text-center">상태</th>
-                    <th className="p-4">제목</th>
-                    <th className="p-4 w-32">기안자</th>
-                    <th className="p-4 w-32">기안일</th>
-                    <th className="p-4 w-24 text-center">결재진행</th>
-                    <th className="p-4 w-28 text-center">작업</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(() => {
-                    let titleText = '';
-                    let filteredDocs = [];
+              <div className="hidden md:block">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-bold">
+                      <th className="p-4 w-20 text-center">상태</th>
+                      <th className="p-4">제목</th>
+                      <th className="p-4 w-32">기안자</th>
+                      <th className="p-4 w-32">기안일</th>
+                      <th className="p-4 w-24 text-center">결재진행</th>
+                      <th className="p-4 w-28 text-center">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(() => {
+                      let filteredDocs = [];
 
-                    if (activeDocTab === 'approvals') {
-                      titleText = '결재문서함';
-                      filteredDocs = documents.filter(doc => 
-                        doc.approvalLine.some(line => line.user.id === currentUser?.id)
-                      );
-                    } else if (activeDocTab === 'references') {
-                      titleText = '참조문서함';
-                      filteredDocs = documents.filter(d => 
-                        d.referenceUsers.some(u => u.id === currentUser?.id)
-                      );
-                    } else if (activeDocTab === 'withdrawn') {
-                      titleText = '회수문서함';
-                      filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
-                    } else if (activeDocTab === 'all') {
-                      titleText = '전체 문서 관리';
-                      filteredDocs = documents;
-                    } else {
-                      titleText = '기안문서함';
-                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
-                    }
+                      if (activeDocTab === 'approvals') {
+                        filteredDocs = documents.filter(doc => 
+                          doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                        );
+                      } else if (activeDocTab === 'references') {
+                        filteredDocs = documents.filter(d => 
+                          d.referenceUsers.some(u => u.id === currentUser?.id)
+                        );
+                      } else if (activeDocTab === 'withdrawn') {
+                        filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
+                      } else if (activeDocTab === 'all') {
+                        filteredDocs = documents;
+                      } else {
+                        filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
+                      }
 
-                    if (filteredDocs.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
-                            문서가 없습니다.
+                      if (filteredDocs.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
+                              문서가 없습니다.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return filteredDocs.map(doc => (
+                        <tr 
+                          key={doc.id} 
+                          onClick={() => setSelectedDoc(doc)}
+                          className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                        >
+                          <td className="p-4 text-center">
+                            <span className={`
+                              px-2 py-1 rounded-md text-[10px] font-bold border
+                              ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
+                                doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                                doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                'bg-yellow-50 text-yellow-600 border-yellow-100'}
+                            `}>
+                              {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
+                            </span>
+                          </td>
+                          <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
+                            {doc.title}
+                          </td>
+                          <td className="p-4 text-sm text-slate-600">
+                            {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
+                          </td>
+                          <td className="p-4 text-sm text-slate-500">
+                            {new Date(doc.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="p-4 text-center">
+                            <div className="flex justify-center -space-x-2">
+                              {doc.approvalLine.map((line, i) => (
+                                <div 
+                                  key={i} 
+                                  className={`
+                                    w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold
+                                    ${line.status === 'APPROVED' ? 'bg-green-500' : line.status === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'}
+                                  `}
+                                  title={`${line.user.name} (${line.status})`}
+                                >
+                                  {line.user.name[0]}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            {(() => {
+                              const canWithdraw =
+                                doc.author.id === currentUser?.id &&
+                                doc.status === ApprovalStatus.PENDING &&
+                                doc.approvalLine.every(l => l.status === 'PENDING');
+                              if (!canWithdraw) return null;
+                              return (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
+                                  className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                >
+                                  기안취소
+                                </button>
+                              );
+                            })()}
                           </td>
                         </tr>
-                      );
-                    }
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
 
-                    return filteredDocs.map(doc => (
-                      <tr 
-                        key={doc.id} 
+              <div className="md:hidden divide-y divide-slate-100">
+                {(() => {
+                  let filteredDocs = [];
+
+                  if (activeDocTab === 'approvals') {
+                    filteredDocs = documents.filter(doc => 
+                      doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                    );
+                  } else if (activeDocTab === 'references') {
+                    filteredDocs = documents.filter(d => 
+                      d.referenceUsers.some(u => u.id === currentUser?.id)
+                    );
+                  } else if (activeDocTab === 'withdrawn') {
+                    filteredDocs = documents.filter(d => d.status === ApprovalStatus.WITHDRAWN && d.author.id === currentUser?.id);
+                  } else if (activeDocTab === 'all') {
+                    filteredDocs = documents;
+                  } else {
+                    filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
+                  }
+
+                  if (filteredDocs.length === 0) {
+                    return (
+                      <div className="p-10 text-center text-slate-400 font-medium">
+                        문서가 없습니다.
+                      </div>
+                    );
+                  }
+
+                  return filteredDocs.map(doc => {
+                    const canWithdraw =
+                      doc.author.id === currentUser?.id &&
+                      doc.status === ApprovalStatus.PENDING &&
+                      doc.approvalLine.every(l => l.status === 'PENDING');
+
+                    return (
+                      <button
+                        key={doc.id}
                         onClick={() => setSelectedDoc(doc)}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                        className="w-full text-left p-4 active:bg-slate-50"
                       >
-                        <td className="p-4 text-center">
-                          <span className={`
-                            px-2 py-1 rounded-md text-[10px] font-bold border
-                            ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
-                              doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
-                              doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                              'bg-yellow-50 text-yellow-600 border-yellow-100'}
-                          `}>
-                            {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
-                          </span>
-                        </td>
-                        <td className="p-4 font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
-                          {doc.title}
-                        </td>
-                        <td className="p-4 text-sm text-slate-600">
-                          {doc.author.name} <span className="text-xs text-slate-400">{doc.author.position}</span>
-                        </td>
-                        <td className="p-4 text-sm text-slate-500">
-                          {new Date(doc.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="p-4 text-center">
-                          <div className="flex justify-center -space-x-2">
-                            {doc.approvalLine.map((line, i) => (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`
+                                px-2 py-0.5 rounded-md text-[10px] font-bold border
+                                ${doc.status === 'APPROVED' ? 'bg-green-50 text-green-600 border-green-100' : 
+                                  doc.status === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' : 
+                                  doc.status === 'WITHDRAWN' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                  'bg-yellow-50 text-yellow-600 border-yellow-100'}
+                              `}>
+                                {doc.status === 'APPROVED' ? '승인완료' : doc.status === 'REJECTED' ? '반려됨' : doc.status === 'WITHDRAWN' ? '회수' : '진행중'}
+                              </span>
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {new Date(doc.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="font-bold text-slate-800 truncate">
+                              {doc.title}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {doc.author.name} {doc.author.position}
+                            </div>
+                          </div>
+
+                          {canWithdraw && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
+                              className="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                            >
+                              기안취소
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex -space-x-2">
+                            {doc.approvalLine.slice(0, 6).map((line, i) => (
                               <div 
                                 key={i} 
                                 className={`
@@ -615,29 +735,15 @@ const App: React.FC = () => {
                               </div>
                             ))}
                           </div>
-                        </td>
-                        <td className="p-4 text-center">
-                          {(() => {
-                            const canWithdraw =
-                              doc.author.id === currentUser?.id &&
-                              doc.status === ApprovalStatus.PENDING &&
-                              doc.approvalLine.every(l => l.status === 'PENDING');
-                            if (!canWithdraw) return null;
-                            return (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); withdrawDocument(doc.id); }}
-                                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
-                              >
-                                기안취소
-                              </button>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+                          <div className="text-[10px] text-slate-400 font-medium">
+                            {doc.approvalLine.filter(l => l.status === 'APPROVED').length}/{doc.approvalLine.length}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
             </div>
           </div>
         )}
@@ -655,15 +761,18 @@ const App: React.FC = () => {
         )}
         
         {activeTab === 'chat' && (
-          <div className="h-full flex gap-6">
-            <ChatRoomList 
-              currentUser={currentUser!}
-              chatRooms={chatRooms}
-              activeRoomId={activeChatRoomId}
-              onSelectRoom={setActiveChatRoomId}
-              users={mockUsers}
-              onCreateRoom={handleCreateChatRoom}
-            />
+          <div className="h-full flex flex-col md:flex-row gap-6">
+            <div className={`${activeChatRoomId ? 'hidden md:block' : 'block'} md:block`}>
+              <ChatRoomList 
+                currentUser={currentUser!}
+                chatRooms={chatRooms}
+                activeRoomId={activeChatRoomId}
+                onSelectRoom={setActiveChatRoomId}
+                users={mockUsers}
+                onCreateRoom={handleCreateChatRoom}
+              />
+            </div>
+
             {activeChatRoomId && chatRooms.find(r => r.id === activeChatRoomId) ? (
               <ChatRoomDetail
                 currentUser={currentUser!}
@@ -674,7 +783,7 @@ const App: React.FC = () => {
                 onClose={() => setActiveChatRoomId(null)}
               />
             ) : (
-              <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
+              <div className="hidden md:flex flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm items-center justify-center text-slate-400">
                 채팅방을 선택하세요
               </div>
             )}
@@ -685,6 +794,26 @@ const App: React.FC = () => {
           <AdminUserManagement />
         )}
       </main>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50">
+        <div className={`grid ${mobileNavItems.length > 5 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+          {mobileNavItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id !== 'draft') setPreSelectedTemplateId(null);
+                setActiveTab(item.id);
+              }}
+              className={`py-2 px-1 flex flex-col items-center justify-center gap-1 text-[10px] font-bold ${
+                activeTab === item.id ? 'text-blue-600' : 'text-slate-500'
+              }`}
+            >
+              <span className="text-base leading-none">{item.icon}</span>
+              <span className="truncate w-full text-center">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 };

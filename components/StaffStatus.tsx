@@ -198,9 +198,9 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
     : users;
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-100px)]">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-[calc(100vh-100px)]">
       {/* 좌측: 조직도 트리 */}
-      <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+      <div className="w-full md:w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <span>🌳</span> 조직도
