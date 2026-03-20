@@ -140,6 +140,12 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+        {room.messages.length === 0 && (
+          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            대화를 시작해보세요.
+          </div>
+        )}
+
         {room.messages.map((msg, index) => {
           const isMe = msg.senderId === currentUser.id;
           const sender = room.participants.find(p => p.id === msg.senderId);
@@ -220,9 +226,10 @@ const ChatRoomDetail: React.FC<ChatRoomDetailProps> = ({
           );
         })}
         <div ref={messagesEndRef} />
+        <div className="h-36 md:hidden" />
       </div>
 
-      <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed md:static left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)+64px)] md:bottom-auto z-50 p-4 bg-white border-t border-slate-200 flex-shrink-0">
         <input 
           type="file" 
           ref={fileInputRef}
