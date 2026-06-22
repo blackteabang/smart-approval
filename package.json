@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"npm --prefix server run dev\"",
     "deploy": "deploy.bat",
     "build": "vite build",
     "preview": "vite preview"
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^10.0.3",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

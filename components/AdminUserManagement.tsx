@@ -25,7 +25,9 @@ const AdminUserManagement: React.FC = () => {
     department: '',
     phone: '',
     role: 'USER',
-    password: 'password123' // 기본 비밀번호
+    password: 'password123', // 기본 비밀번호
+    joinDate: '',
+    status: 'ACTIVE'
   });
 
   /**
@@ -50,7 +52,10 @@ const AdminUserManagement: React.FC = () => {
     if (user) {
       // 수정 모드
       setEditingUser(user);
-      setFormData({ ...user });
+      setFormData({ 
+        ...user,
+        joinDate: user.joinDate ? user.joinDate.substring(0, 10) : ''
+      });
     } else {
       // 추가 모드
       setEditingUser(null);
@@ -61,7 +66,9 @@ const AdminUserManagement: React.FC = () => {
         phone: '',
         role: 'USER',
         password: 'password123',
-        avatar: `https://i.pravatar.cc/150?u=${Date.now()}`
+        avatar: `https://i.pravatar.cc/150?u=${Date.now()}`,
+        joinDate: new Date().toISOString().substring(0, 10),
+        status: 'ACTIVE'
       });
     }
     setIsModalOpen(true);
@@ -70,6 +77,16 @@ const AdminUserManagement: React.FC = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'signature') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, [type]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   /**
@@ -86,12 +103,44 @@ const AdminUserManagement: React.FC = () => {
       phone: formData.phone || '',
       role: formData.role as 'ADMIN' | 'USER',
       password: formData.password || editingUser?.password,
-      avatar: formData.avatar || editingUser?.avatar || `https://i.pravatar.cc/150?u=${Date.now()}`
+      avatar: formData.avatar || editingUser?.avatar || `https://i.pravatar.cc/150?u=${Date.now()}`,
+      joinDate: formData.joinDate || null,
+      status: formData.status || 'ACTIVE',
+      signature: formData.signature || editingUser?.signature || null
     };
 
     await saveUser(userToSave);
     await fetchUsers();
     handleCloseModal();
+  };
+
+  /**
+   * 사용자 퇴사처리 핸들러
+   */
+  const handleRetire = async () => {
+    if (!editingUser) return;
+    if (window.confirm(`${editingUser.name} 직원을 퇴사 처리하시겠습니까?`)) {
+      const userToSave: User = {
+        ...editingUser,
+        ...formData,
+        status: 'RETIRED'
+      } as User;
+      await saveUser(userToSave);
+      await fetchUsers();
+      handleCloseModal();
+    }
+  };
+
+  /**
+   * 사용자 삭제 핸들러 (모달 내)
+   */
+  const handleModalDelete = async () => {
+    if (!editingUser) return;
+    if (window.confirm(`${editingUser.name} 직원을 정말 삭제하시겠습니까?`)) {
+      await deleteUser(editingUser.id);
+      await fetchUsers();
+      handleCloseModal();
+    }
   };
 
   /**
@@ -119,7 +168,7 @@ const AdminUserManagement: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
 
   // 부서 목록 추출
-  const departments = Array.from(new Set(users.map(u => u.department))).sort();
+  const departments = Array.from(new Set(users.map(u => u.department))).sort() as string[];
   
   // 선택된 부서에 따라 사용자 필터링
   const filteredUsers = selectedDept 
@@ -127,7 +176,7 @@ const AdminUserManagement: React.FC = () => {
     : users;
 
   // 트리 노드 컴포넌트 (부서 표시용)
-  const DeptTreeNode = ({ dept, isSelected, onClick }: { dept: string, isSelected: boolean, onClick: () => void }) => {
+  const DeptTreeNode = ({ dept, isSelected, onClick }: { dept: string, isSelected: boolean, onClick: () => void, key?: string }) => {
     const count = users.filter(u => u.department === dept).length;
     return (
       <div 
@@ -206,7 +255,7 @@ const AdminUserManagement: React.FC = () => {
         <div className="overflow-auto flex-1 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredUsers.map((user) => (
-              <div key={user.id} className="group relative p-4 rounded-xl border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all bg-white">
+              <div key={user.id} className={`group relative p-4 rounded-xl border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all ${user.status === 'RETIRED' ? 'bg-slate-50 opacity-60' : 'bg-white'}`}>
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <button onClick={() => handleResetPassword(user)} className="p-1.5 bg-white text-yellow-600 hover:text-yellow-900 border border-slate-200 rounded-lg shadow-sm hover:shadow" title="비밀번호 초기화">
                     <FiKey size={16} />
@@ -214,23 +263,24 @@ const AdminUserManagement: React.FC = () => {
                   <button onClick={() => handleOpenModal(user)} className="p-1.5 bg-white text-indigo-600 hover:text-indigo-900 border border-slate-200 rounded-lg shadow-sm hover:shadow" title="수정">
                     <FiEdit2 size={16} />
                   </button>
-                  {user.id !== 'admin' && (
-                    <button onClick={() => handleDelete(user.id)} className="p-1.5 bg-white text-red-600 hover:text-red-900 border border-slate-200 rounded-lg shadow-sm hover:shadow" title="삭제">
-                      <FiTrash2 size={16} />
-                    </button>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <img className="h-14 w-14 rounded-full border-2 border-slate-50" src={user.avatar} alt="" />
+                  <img className="h-14 w-14 rounded-full border-2 border-slate-50 object-cover" src={user.avatar} alt="" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="text-base font-bold text-gray-900 truncate">{user.name}</div>
                       <span className={`px-2 py-0.5 inline-flex text-[10px] leading-4 font-semibold rounded-full ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'}`}>
                         {user.role === 'ADMIN' ? '관리자' : '직원'}
                       </span>
+                      {user.status === 'RETIRED' && (
+                        <span className="px-2 py-0.5 inline-flex text-[10px] leading-4 font-semibold rounded-full bg-red-100 text-red-800">
+                          퇴사
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-blue-600 font-medium">{user.department} {user.position}</div>
+                    {user.joinDate && <div className="text-[11px] text-slate-500 mt-0.5">입사일: {user.joinDate}</div>}
                     <div className="text-xs text-gray-400 mt-1">{user.phone}</div>
                   </div>
                 </div>
@@ -250,15 +300,59 @@ const AdminUserManagement: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">이름</label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium text-gray-700">이름</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                
+                {/* 사진 선택 */}
+                <div className="flex flex-col items-center">
+                  <label htmlFor="modal-avatar-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center hover:border-blue-500 transition-colors">
+                      {formData.avatar ? (
+                        <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] text-slate-450">사진</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">사진 선택</span>
+                  </label>
+                  <input
+                    type="file"
+                    id="modal-avatar-upload"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, 'avatar')}
+                  />
+                </div>
+
+                {/* 서명 선택 */}
+                <div className="flex flex-col items-center">
+                  <label htmlFor="modal-signature-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center hover:border-blue-500 transition-colors">
+                      {formData.signature ? (
+                        <img src={formData.signature} alt="Signature" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] text-slate-450">서명</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">서명 선택</span>
+                  </label>
+                  <input
+                    type="file"
+                    id="modal-signature-upload"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, 'signature')}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -282,15 +376,26 @@ const AdminUserManagement: React.FC = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">연락처</label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">연락처</label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">입사일</label>
+                  <input
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                    value={formData.joinDate || ''}
+                    onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">권한</label>
@@ -315,20 +420,42 @@ const AdminUserManagement: React.FC = () => {
                   />
                 </div>
               )}
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  저장
-                </button>
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <div className="flex gap-2">
+                  {editingUser && editingUser.id !== 'admin' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleRetire}
+                        className="px-3 py-2 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 transition-all"
+                      >
+                        퇴사처리
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleModalDelete}
+                        className="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-all"
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="flex">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  >
+                    저장
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -16,22 +16,37 @@ interface EditUserModalProps {
   currentUser: User;
   onClose: () => void;
   onSave: (user: User) => void;
+  onDelete?: (userId: string) => void;
 }
 
 /**
  * 직원 정보 수정 모달 컴포넌트
  */
-const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClose, onSave }) => {
+const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClose, onSave, onDelete }) => {
   const [formData, setFormData] = useState({
     name: user.name,
     position: user.position,
     department: user.department,
     phone: user.phone,
-    password: ''
+    password: '',
+    joinDate: user.joinDate ? user.joinDate.substring(0, 10) : '',
+    status: user.status || 'ACTIVE',
+    avatar: user.avatar || '',
+    signature: user.signature || ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'signature') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, [type]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   /**
@@ -58,6 +73,32 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
     }
   };
 
+  /**
+   * 사용자 퇴사처리 핸들러 (관리자 전용)
+   */
+  const handleRetire = () => {
+    if (confirm(`${user.name} 직원을 퇴사 처리하시겠습니까?`)) {
+      onSave({
+        ...user,
+        ...formData,
+        status: 'RETIRED'
+      });
+      onClose();
+    }
+  };
+
+  /**
+   * 사용자 삭제 핸들러 (관리자 전용)
+   */
+  const handleDeleteClick = () => {
+    if (confirm(`${user.name} 직원을 정말 삭제하시겠습니까?`)) {
+      if (onDelete) {
+        onDelete(user.id);
+      }
+      onClose();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
@@ -66,16 +107,60 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">이름</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              required
-            />
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 min-w-0">
+              <label className="text-xs font-bold text-slate-500 uppercase">이름</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+            
+            {/* 사진 선택 */}
+            <div className="flex flex-col items-center">
+              <label htmlFor="staff-avatar-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center hover:border-blue-500 transition-colors">
+                  {formData.avatar ? (
+                    <img src={formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] text-slate-450">사진</span>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">사진 선택</span>
+              </label>
+              <input
+                type="file"
+                id="staff-avatar-upload"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, 'avatar')}
+              />
+            </div>
+
+            {/* 서명 선택 */}
+            <div className="flex flex-col items-center">
+              <label htmlFor="staff-signature-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                <div className="w-10 h-10 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center hover:border-blue-500 transition-colors">
+                  {formData.signature ? (
+                    <img src={formData.signature} alt="Signature" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-[10px] text-slate-450">서명</span>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">서명 선택</span>
+              </label>
+              <input
+                type="file"
+                id="staff-signature-upload"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, 'signature')}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -108,16 +193,28 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
               </select>
             </div>
           </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">연락처</label>
-            <input
-              type="text"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase">연락처</label>
+              <input
+                type="text"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase">입사일</label>
+              <input
+                type="date"
+                name="joinDate"
+                value={formData.joinDate}
+                onChange={handleChange}
+                className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
           </div>
           
           {/* 비밀번호 변경 필드 */}
@@ -149,7 +246,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, currentUser, onClos
             </p>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
@@ -263,11 +360,11 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
         <div className="overflow-auto flex-1 p-6 bg-slate-50/50">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
             {filteredUsers.map(user => (
-              <div key={user.id} className="group relative bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+              <div key={user.id} className={`group relative p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 ${user.status === 'RETIRED' ? 'bg-slate-50/70 opacity-60' : 'bg-white'}`}>
                 
-                {/* 관리자 권한 또는 본인일 경우 수정/삭제 버튼 표시 */}
+                {/* 본인일 경우에만 수정 버튼 표시 */}
                 <div className={`absolute top-3 right-3 flex gap-1 transition-opacity z-10 ${
-                      (currentUser.role === 'ADMIN' || currentUser.id === user.id) ? 'opacity-0 group-hover:opacity-100' : 'hidden'
+                      currentUser.id === user.id ? 'opacity-0 group-hover:opacity-100' : 'hidden'
                     }`}>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
@@ -276,15 +373,6 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
                       >
                         ✏️
                       </button>
-                      {currentUser.role === 'ADMIN' && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); onDeleteUser(user.id); }}
-                          className="p-1.5 bg-white text-slate-500 hover:text-red-600 border border-slate-200 rounded-lg shadow-sm hover:shadow"
-                          title="삭제"
-                        >
-                          🗑️
-                        </button>
-                      )}
                 </div>
 
                 <div className="flex items-start gap-4">
@@ -303,10 +391,16 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
                       <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">
                         {user.position}
                       </span>
+                      {user.status === 'RETIRED' && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-650 text-[10px] font-bold" style={{ color: '#ef4444', backgroundColor: '#fee2e2' }}>
+                          퇴사
+                        </span>
+                      )}
                     </div>
                     
-                    <div className="text-xs text-slate-500 mb-3 font-medium">
-                      {user.department}
+                    <div className="text-xs text-slate-500 mb-2 font-medium flex justify-between items-center">
+                      <span>{user.department}</span>
+                      {user.joinDate && <span className="text-[10px] text-slate-400">입사일: {user.joinDate}</span>}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -337,6 +431,10 @@ const StaffStatus: React.FC<StaffStatusProps> = ({ users, currentUser, onUpdateU
             onUpdateUser(updatedUser);
             setEditingUser(null);
           }} 
+          onDelete={(userId) => {
+            onDeleteUser(userId);
+            setEditingUser(null);
+          }}
         />
       )}
     </div>

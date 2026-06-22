@@ -21,6 +21,9 @@ export type User = {
   password?: string;      // 비밀번호
   avatar?: string;        // 프로필 이미지 URL
   role: 'ADMIN' | 'USER'; // 권한 (관리자/일반사용자)
+  joinDate?: string;      // 입사일
+  status?: 'ACTIVE' | 'RETIRED'; // 상태 (재직/퇴사)
+  signature?: string;     // 서명 이미지 (Base64)
 };
 
 /**

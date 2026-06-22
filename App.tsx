@@ -10,7 +10,7 @@ import ChatRoomDetail from './components/ChatRoomDetail';
 import AdminUserManagement from './components/AdminUserManagement';
 import { TabType, ApprovalDocument, ApprovalStatus, User, ApprovalLine, ApprovalRole, Attachment, ChatRoom } from './types';
 import { MOCK_DOCUMENTS, MOCK_USERS, TEMPLATES } from './constants';
-import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser, deleteUser } from './services/dbService';
+import { getUsers, getDocuments, createDocument, updateDocumentStatus, saveUser, deleteUser, getChatRooms, createChatRoom, sendChatMessage, inviteUserToChatRoom } from './services/dbService';
 import { formatUserNameWithPosition, positionIfNotDuplicated } from './utils/userDisplay';
 
 const STORAGE_KEY_CHATS = 'smartapprove_chats';
@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [mockUsers, setMockUsers] = useState<User[]>(MOCK_USERS);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'references' | 'withdrawn' | 'all'>('approvals'); // 문서함 서브 탭
+  const [activeDocTab, setActiveDocTab] = useState<'drafts' | 'approvals' | 'completed' | 'references' | 'withdrawn' | 'all'>('approvals'); // 문서함 서브 탭
   const [documents, setDocuments] = useState<ApprovalDocument[]>(MOCK_DOCUMENTS);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CHATS);
@@ -42,15 +42,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       const users = await getUsers();
-      // 데이터가 없거나 데모 데이터가 누락된 경우 병합
-      const hasMockData = users.some(u => u.id === 'u1');
-      if (!hasMockData) {
-        const existingIds = new Set(users.map(u => u.id));
-        const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
-        setMockUsers([...users, ...missingMocks]);
-      } else {
-        setMockUsers(users.length > 0 ? users : MOCK_USERS);
-      }
+      setMockUsers(users.length > 0 ? users : MOCK_USERS);
       
       const docs = await getDocuments();
       const resolvedDocs = docs.length > 0 ? docs : MOCK_DOCUMENTS;
@@ -70,6 +62,19 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
+  // 로드 시 MySQL 서버에서 채팅방 목록을 가져옴
+  useEffect(() => {
+    const loadChats = async () => {
+      if (currentUser) {
+        const rooms = await getChatRooms(currentUser.id);
+        setChatRooms(rooms);
+      } else {
+        setChatRooms([]);
+      }
+    };
+    loadChats();
+  }, [currentUser]);
+
   // 채팅 데이터 로컬 저장소 동기화
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(chatRooms));
@@ -78,7 +83,7 @@ const App: React.FC = () => {
   /**
    * 채팅방 생성 또는 기존 채팅방 이동
    */
-  const handleCreateChatRoom = (participants: User[], name?: string) => {
+  const handleCreateChatRoom = async (participants: User[], name?: string) => {
     if (!currentUser) return;
     
     // 1:1 채팅방 중복 확인
@@ -106,12 +111,15 @@ const App: React.FC = () => {
       unreadCount: 0
     };
 
+    // MySQL 서버에 저장
+    await createChatRoom(newRoom);
+
     setChatRooms(prev => [newRoom, ...prev]);
     setActiveChatRoomId(newRoom.id);
     setActiveTab('chat');
   };
 
-  const ensureApprovalChatRoom = (doc: ApprovalDocument) => {
+  const ensureApprovalChatRoom = async (doc: ApprovalDocument) => {
     const roomId = `docchat-${doc.id}`;
     const existing = chatRooms.find(r => r.id === roomId);
     if (existing) return existing.id;
@@ -143,6 +151,10 @@ const App: React.FC = () => {
       unreadCount: 0
     };
 
+    // MySQL 서버에 채팅방 및 메시지 저장
+    await createChatRoom(newRoom);
+    await sendChatMessage(roomId, systemMsg);
+
     setChatRooms(prev => [newRoom, ...prev]);
     return newRoom.id;
   };
@@ -150,7 +162,7 @@ const App: React.FC = () => {
   /**
    * 채팅 메시지 전송
    */
-  const handleSendMessage = (roomId: string, content: string, type: 'text' | 'system' | 'file' | 'image', attachment?: Attachment) => {
+  const handleSendMessage = async (roomId: string, content: string, type: 'text' | 'system' | 'file' | 'image', attachment?: Attachment) => {
     if (!currentUser) return;
 
     const newMessage: any = {
@@ -161,6 +173,9 @@ const App: React.FC = () => {
       type,
       attachment
     };
+
+    // MySQL 서버에 메시지 전송
+    await sendChatMessage(roomId, newMessage);
 
     setChatRooms(prev => prev.map(room => {
       if (room.id !== roomId) return room;
@@ -195,18 +210,21 @@ const App: React.FC = () => {
   /**
    * 채팅방 초대 처리
    */
-  const handleInviteUser = (roomId: string, user: User) => {
+  const handleInviteUser = async (roomId: string, user: User) => {
+    const systemMsg: any = {
+      id: `msg-${Date.now()}`,
+      senderId: 'system',
+      content: `${user.name}님이 초대되었습니다.`,
+      timestamp: new Date().toISOString(),
+      type: 'system'
+    };
+
+    // MySQL 서버에 사용자 초대 및 시스템 메시지 저장
+    await inviteUserToChatRoom(roomId, user, systemMsg);
+
     setChatRooms(prev => prev.map(room => {
       if (room.id !== roomId) return room;
       if (room.participants.some(p => p.id === user.id)) return room;
-      
-      const systemMsg: any = {
-        id: `msg-${Date.now()}`,
-        senderId: 'system',
-        content: `${user.name}님이 초대되었습니다.`,
-        timestamp: new Date().toISOString(),
-        type: 'system'
-      };
 
       return {
         ...room,
@@ -240,22 +258,54 @@ const App: React.FC = () => {
   };
 
   /**
+   * 로컬 스토리지 데이터를 MySQL로 마이그레이션
+   */
+  const handleMigrateData = async () => {
+    setIsProfileMenuOpen(false);
+    const usersJson = localStorage.getItem('smartapprove_users');
+    const docsJson = localStorage.getItem('smartapprove_docs');
+    const chatsJson = localStorage.getItem('smartapprove_chats');
+    
+    if (!usersJson && !docsJson && !chatsJson) {
+      alert('마이그레이션할 로컬 스토리지 데이터가 없습니다.');
+      return;
+    }
+    
+    const ok = window.confirm('로컬 저장소의 모든 데이터(사용자, 문서, 채팅)를 MySQL 데이터베이스로 마이그레이션하시겠습니까?\n(동일한 ID의 데이터는 덮어씌워집니다.)');
+    if (!ok) return;
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${API_URL}/migrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          users: usersJson ? JSON.parse(usersJson) : [],
+          documents: docsJson ? JSON.parse(docsJson) : [],
+          chats: chatsJson ? JSON.parse(chatsJson) : []
+        })
+      });
+      
+      if (response.ok) {
+        alert('로컬 데이터가 MySQL로 성공적으로 복사되었습니다!');
+        window.location.reload();
+      } else {
+        const errData = await response.json();
+        alert(`복사 실패: ${errData.message || '알 수 없는 오류'}`);
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(`복사 중 오류가 발생했습니다: ${error.message}`);
+    }
+  };
+
+  /**
    * 회원가입 처리
    */
   const handleSignUp = async (newUser: User) => {
     await saveUser(newUser);
     const users = await getUsers();
-    
-    // 데모 데이터 병합 로직 적용
-    const hasMockData = users.some(u => u.id === 'u1');
-    if (!hasMockData) {
-      const existingIds = new Set(users.map(u => u.id));
-      const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
-      setMockUsers([...users, ...missingMocks]);
-    } else {
-      setMockUsers(users);
-    }
-    
+    setMockUsers(users);
     handleLogin(newUser);
   };
 
@@ -440,6 +490,9 @@ const App: React.FC = () => {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                   <button onClick={handleMyInfoEdit} className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">내 정보 수정</button>
                   <button className="w-full px-4 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium">환경설정</button>
+                  {import.meta.env.VITE_API_MODE === 'true' && (
+                    <button onClick={handleMigrateData} className="w-full px-4 py-2 text-left text-sm text-amber-600 hover:bg-amber-50 hover:text-amber-700 font-bold border-t border-slate-100">로컬 데이터를 DB로 복사</button>
+                  )}
                   <div className="h-px bg-slate-100 my-1"></div>
                   <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 font-bold">로그아웃</button>
                 </div>
@@ -494,7 +547,7 @@ const App: React.FC = () => {
 
                 const success = await handleCreateDocument(newDoc);
                 if (success) {
-                  ensureApprovalChatRoom(newDoc);
+                  await ensureApprovalChatRoom(newDoc);
                 }
                 setPreSelectedTemplateId(null);
               }}
@@ -512,6 +565,14 @@ const App: React.FC = () => {
                   }`}
                 >
                   📥 결재대기문서
+                </button>
+                <button 
+                  onClick={() => setActiveDocTab('completed')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                    activeDocTab === 'completed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  ✅ 결재완료문서
                 </button>
                 <button 
                   onClick={() => setActiveDocTab('drafts')}
@@ -569,8 +630,14 @@ const App: React.FC = () => {
 
                         if (activeDocTab === 'approvals') {
                           filteredDocs = documents.filter(doc => 
-                            doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                            doc.approvalLine.some(line => line.user.id === currentUser?.id && line.status === 'PENDING')
                           );
+                        } else if (activeDocTab === 'completed') {
+                          filteredDocs = documents.filter(doc => 
+                            doc.approvalLine.some(line => line.user.id === currentUser?.id && line.status === 'APPROVED')
+                          );
+                        } else if (activeDocTab === 'drafts') {
+                          filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
                         } else if (activeDocTab === 'references') {
                           filteredDocs = documents.filter(d => 
                             d.referenceUsers.some(u => u.id === currentUser?.id)
@@ -668,8 +735,14 @@ const App: React.FC = () => {
 
                     if (activeDocTab === 'approvals') {
                       filteredDocs = documents.filter(doc => 
-                        doc.approvalLine.some(line => line.user.id === currentUser?.id)
+                        doc.approvalLine.some(line => line.user.id === currentUser?.id && line.status === 'PENDING')
                       );
+                    } else if (activeDocTab === 'completed') {
+                      filteredDocs = documents.filter(doc => 
+                        doc.approvalLine.some(line => line.user.id === currentUser?.id && line.status === 'APPROVED')
+                      );
+                    } else if (activeDocTab === 'drafts') {
+                      filteredDocs = documents.filter(d => d.author.id === currentUser?.id && d.status !== ApprovalStatus.WITHDRAWN);
                     } else if (activeDocTab === 'references') {
                       filteredDocs = documents.filter(d => 
                         d.referenceUsers.some(u => u.id === currentUser?.id)

@@ -1,11 +1,30 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { User, ApprovalDocument, ApprovalStatus, ApprovalLine, Attachment, ChatRoom, ChatMessage } from '../types';
+import { User, ApprovalDocument, ApprovalStatus, ApprovalLine, ChatMessage, ChatRoom } from '../types';
 import { MOCK_USERS, MOCK_DOCUMENTS } from '../constants';
+
+// --- API Configuration for MySQL Mode ---
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const isApiMode = () => import.meta.env.VITE_API_MODE === 'true';
+
+const apiFetch = async (endpoint: string, options?: RequestInit) => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers || {})
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+  return response.json();
+};
 
 // --- Users (사용자 관리) ---
 
 /**
  * 모든 사용자 목록 조회
+ * - API 모드(MySQL)인 경우 Express 서버에서 가져옵니다.
  * - Supabase가 설정되어 있지 않으면 로컬 저장소(localStorage)에서 조회합니다.
  * - 데이터가 없거나 일부 데모 사용자가 누락된 경우 자동으로 복구합니다.
  */
@@ -15,13 +34,9 @@ export const getUsers = async (): Promise<User[]> => {
     const saved = localStorage.getItem('smartapprove_users');
     let users = saved ? JSON.parse(saved) : [...MOCK_USERS];
 
-    // 데이터 복구 로직: 로컬 스토리지가 비어있거나 MOCK_USERS가 누락된 경우에만 실행
-    // 단, 사용자가 의도적으로 MOCK_USERS를 삭제했을 수도 있으므로
-    // '데이터가 거의 없는 경우(1명 이하)'에만 복구하도록 제한
-    const shouldRestoreMocks = users.length <= 1 || !users.some((u: any) => u.id === 'u1');
-    if (shouldRestoreMocks) {
-      const existingIds = new Set(users.map((u: any) => u.id));
-      const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+    const existingIds = new Set(users.map((u: any) => u.id));
+    const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
+    if (missingMocks.length > 0) {
       users = [...users, ...missingMocks];
       localStorage.setItem('smartapprove_users', JSON.stringify(users));
     }
@@ -32,6 +47,24 @@ export const getUsers = async (): Promise<User[]> => {
     }));
   };
 
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      const data = await apiFetch('/users');
+      let users = (data || []).map((u: any) => ({
+        ...u,
+        role: u?.role || (u?.id === 'admin' ? 'ADMIN' : 'USER')
+      })) as User[];
+
+      localStorage.setItem('smartapprove_users', JSON.stringify(users));
+      return users;
+    } catch (error) {
+      console.error('Error fetching users from API, falling back to local storage:', error);
+      return getLocalUsers();
+    }
+  }
+
+  // 2. Supabase 모드
   if (!isSupabaseConfigured()) {
     return getLocalUsers();
   }
@@ -46,12 +79,7 @@ export const getUsers = async (): Promise<User[]> => {
     role: u?.role || (u?.id === 'admin' ? 'ADMIN' : 'USER')
   })) as User[];
 
-  const existingIds = new Set(users.map(u => u.id));
-  const missingMocks = MOCK_USERS.filter(m => !existingIds.has(m.id));
-  if (missingMocks.length > 0) {
-    users = [...users, ...missingMocks];
-    localStorage.setItem('smartapprove_users', JSON.stringify(users));
-  }
+  localStorage.setItem('smartapprove_users', JSON.stringify(users));
 
   return users;
 };
@@ -62,12 +90,6 @@ export const getUsers = async (): Promise<User[]> => {
 export const saveUser = async (user: User): Promise<User | null> => {
   // 로컬 스토리지에 저장하는 헬퍼 함수
   const saveLocalUser = async (userToSave: User) => {
-    const users = await getUsers(); // 이 시점에서는 로컬/DB 상관없이 가져옴 (에러 시 로컬)
-    
-    // 만약 getUsers가 DB에서 가져왔다면 로컬엔 없을 수 있음. 
-    // 하지만 여기선 '저장 실패 시 로컬로 fallback' 하는 상황이므로
-    // 로컬 스토리지 기준으로 병합해야 함.
-    // 따라서 로컬 스토리지 직접 조회 필요
     const saved = localStorage.getItem('smartapprove_users');
     let localUsers = saved ? JSON.parse(saved) : [...MOCK_USERS];
     
@@ -81,6 +103,20 @@ export const saveUser = async (user: User): Promise<User | null> => {
     return userToSave;
   };
 
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      return await apiFetch('/users', {
+        method: 'POST',
+        body: JSON.stringify(user)
+      });
+    } catch (error) {
+      console.error('Error saving user to API, falling back to local storage:', error);
+      return saveLocalUser(user);
+    }
+  }
+
+  // 2. Supabase 모드
   if (!isSupabaseConfigured()) {
     return saveLocalUser(user);
   }
@@ -88,8 +124,6 @@ export const saveUser = async (user: User): Promise<User | null> => {
   const { data, error } = await supabase!.from('users').upsert(user).select().single();
   if (error) {
     console.error('Error saving user to Supabase, falling back to local storage:', error);
-    // Supabase 저장 실패 시 로컬 스토리지에 저장하여 데이터 유실 방지
-    // 이 경우, 나중에 다시 접속했을 때 로컬 스토리지의 데이터를 사용하게 됨
     return saveLocalUser(user);
   }
   return data;
@@ -99,6 +133,23 @@ export const saveUser = async (user: User): Promise<User | null> => {
  * 사용자 삭제
  */
 export const deleteUser = async (userId: string): Promise<boolean> => {
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch(`/users/${userId}`, {
+        method: 'DELETE'
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Error deleting user from API, falling back to local storage:', error);
+      const users = await getUsers();
+      const updatedUsers = users.filter(u => u.id !== userId);
+      localStorage.setItem('smartapprove_users', JSON.stringify(updatedUsers));
+      return true;
+    }
+  }
+
+  // 2. Supabase 모드
   if (!isSupabaseConfigured()) {
     const users = await getUsers();
     const updatedUsers = users.filter(u => u.id !== userId);
@@ -114,7 +165,7 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
  * 데이터를 데모 상태로 초기화 (로컬 저장소 전용)
  */
 export const resetToMockData = async (): Promise<void> => {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() && !isApiMode()) {
     localStorage.setItem('smartapprove_users', JSON.stringify(MOCK_USERS));
   }
 };
@@ -125,13 +176,51 @@ export const resetToMockData = async (): Promise<void> => {
  * 모든 결재 문서 조회
  */
 export const getDocuments = async (): Promise<ApprovalDocument[]> => {
-  if (!isSupabaseConfigured()) {
-    const saved = localStorage.getItem('smartapprove_docs');
-    return saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
-  }
-
   const savedLocal = localStorage.getItem('smartapprove_docs');
   const localDocs: ApprovalDocument[] = savedLocal ? JSON.parse(savedLocal) : [];
+
+  // 사용자 매핑 헬퍼 함수
+  const normalizeUser = (u: any): User => ({
+    id: u?.id ?? 'unknown',
+    name: u?.name ?? '알 수 없음',
+    position: u?.position ?? '',
+    department: u?.department ?? '',
+    phone: u?.phone ?? '',
+    password: u?.password,
+    avatar: u?.avatar,
+    role: u?.role ?? (u?.id === 'admin' ? 'ADMIN' : 'USER')
+  });
+
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      const dbDocs = await apiFetch('/documents');
+      
+      const localById = new Map(localDocs.map(d => [d.id, d]));
+      const merged = dbDocs.map((d: any) => {
+        const local = localById.get(d.id);
+        if (!local) return d;
+        return {
+          ...d,
+          approvalLine: d.approvalLine.length > 0 ? d.approvalLine : (local.approvalLine || []),
+          referenceUsers: d.referenceUsers.length > 0 ? d.referenceUsers : (local.referenceUsers || []),
+          attachments: d.attachments.length > 0 ? d.attachments : (local.attachments || []),
+        };
+      });
+
+      const mergedIds = new Set(merged.map((d: any) => d.id));
+      const onlyLocal = localDocs.filter(d => !mergedIds.has(d.id));
+      return [...onlyLocal, ...merged] as ApprovalDocument[];
+    } catch (error) {
+      console.error('Error fetching documents from API, falling back to local storage:', error);
+      return localDocs.length > 0 ? localDocs : MOCK_DOCUMENTS;
+    }
+  }
+
+  // 2. Supabase 모드
+  if (!isSupabaseConfigured()) {
+    return localDocs.length > 0 ? localDocs : MOCK_DOCUMENTS;
+  }
 
   // 문서와 관련된 정보(작성자, 결재선, 참조자, 첨부파일)를 함께 조회
   const { data: docs, error } = await supabase!.from('documents').select(`
@@ -144,22 +233,10 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
 
   if (error) {
     console.error('Error fetching documents:', error);
-    // Supabase 조회 실패 시 로컬 스토리지 데이터 반환 (백업 데이터)
     return localDocs.length > 0 ? localDocs : MOCK_DOCUMENTS;
   }
 
   // DB 데이터를 클라이언트 앱 타입(ApprovalDocument)에 맞게 변환
-  const normalizeUser = (u: any): User => ({
-    id: u?.id ?? 'unknown',
-    name: u?.name ?? '알 수 없음',
-    position: u?.position ?? '',
-    department: u?.department ?? '',
-    phone: u?.phone ?? '',
-    password: u?.password,
-    avatar: u?.avatar,
-    role: u?.role ?? (u?.id === 'admin' ? 'ADMIN' : 'USER')
-  });
-
   const dbDocs: ApprovalDocument[] = docs.map((d: any) => ({
     id: d.id,
     title: d.title,
@@ -209,9 +286,6 @@ export const getDocuments = async (): Promise<ApprovalDocument[]> => {
 export const createDocument = async (doc: ApprovalDocument): Promise<boolean> => {
   // 로컬 저장소 저장 헬퍼 함수
   const saveLocalDocument = async (docToSave: ApprovalDocument) => {
-    // 로컬 모드에서는 getDocuments가 로컬 스토리지를 읽으므로 바로 사용 가능
-    // 하지만 DB 모드에서 실패해서 여기로 온 경우, getDocuments는 DB 조회를 시도할 수 있음.
-    // 따라서 직접 로컬 스토리지 접근이 안전함.
     const saved = localStorage.getItem('smartapprove_docs');
     const docs = saved ? JSON.parse(saved) : MOCK_DOCUMENTS;
     const updatedDocs = [docToSave, ...docs];
@@ -219,6 +293,21 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
     return true;
   };
 
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch('/documents', {
+        method: 'POST',
+        body: JSON.stringify(doc)
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Failed to create document in API, falling back to local storage:', error);
+      return saveLocalDocument(doc);
+    }
+  }
+
+  // 2. Supabase 모드
   if (!isSupabaseConfigured()) {
     return saveLocalDocument(doc);
   }
@@ -287,7 +376,6 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
       } catch {
       }
     }
-    // DB 저장 실패 시 로컬 스토리지에 저장 (데이터 유실 방지)
     return saveLocalDocument(doc);
   }
 };
@@ -296,6 +384,33 @@ export const createDocument = async (doc: ApprovalDocument): Promise<boolean> =>
  * 문서 상태 및 결재선 업데이트 (승인/반려 처리 시)
  */
 export const updateDocumentStatus = async (docId: string, status: string, approvalLine: ApprovalLine[]): Promise<boolean> => {
+  // 1. MySQL API 모드
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch(`/documents/${docId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, approvalLine })
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Failed to update document status in API, falling back to local storage:', error);
+      const docs = await getDocuments();
+      const updatedDocs = docs.map(doc => {
+        if (doc.id === docId) {
+          return {
+            ...doc,
+            status: status as ApprovalStatus,
+            approvalLine
+          };
+        }
+        return doc;
+      });
+      localStorage.setItem('smartapprove_docs', JSON.stringify(updatedDocs));
+      return true;
+    }
+  }
+
+  // 2. Supabase 모드
   if (!isSupabaseConfigured()) {
     const docs = await getDocuments();
     const updatedDocs = docs.map(doc => {
@@ -317,13 +432,132 @@ export const updateDocumentStatus = async (docId: string, status: string, approv
 
   // 결재선 상태 업데이트
   for (const line of approvalLine) {
-    // role 필드가 누락되지 않도록 업데이트 시 주의
     await supabase!.from('approval_lines').update({
       status: line.status,
       processed_at: line.processedAt,
-      role: line.role // role 필드 명시적 업데이트 (필수는 아니지만 안전장치)
+      role: line.role
     }).eq('id', line.id);
   }
 
   return true;
 };
+
+/**
+ * 특정 사용자의 모든 채팅방 목록 조회
+ */
+export const getChatRooms = async (userId: string): Promise<ChatRoom[]> => {
+  const getLocalChats = () => {
+    const saved = localStorage.getItem('smartapprove_chats');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  if (isApiMode()) {
+    try {
+      return await apiFetch(`/chat/rooms/${userId}`);
+    } catch (error) {
+      console.error('Error fetching chat rooms from API, falling back to local storage:', error);
+      return getLocalChats();
+    }
+  }
+  return getLocalChats();
+};
+
+/**
+ * 채팅방 생성
+ */
+export const createChatRoom = async (room: ChatRoom): Promise<boolean> => {
+  const saveLocalChatRoom = (roomToSave: ChatRoom) => {
+    const saved = localStorage.getItem('smartapprove_chats');
+    const rooms = saved ? JSON.parse(saved) : [];
+    const updatedRooms = [roomToSave, ...rooms];
+    localStorage.setItem('smartapprove_chats', JSON.stringify(updatedRooms));
+    return true;
+  };
+
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch('/chat/rooms', {
+        method: 'POST',
+        body: JSON.stringify(room)
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Failed to create chat room in API, falling back to local storage:', error);
+      return saveLocalChatRoom(room);
+    }
+  }
+  return saveLocalChatRoom(room);
+};
+
+/**
+ * 채팅 메시지 전송
+ */
+export const sendChatMessage = async (roomId: string, message: ChatMessage): Promise<boolean> => {
+  const saveLocalMessage = (rId: string, msg: ChatMessage) => {
+    const saved = localStorage.getItem('smartapprove_chats');
+    if (!saved) return false;
+    const rooms: ChatRoom[] = JSON.parse(saved);
+    const updatedRooms = rooms.map(room => {
+      if (room.id !== rId) return room;
+      return {
+        ...room,
+        messages: [...room.messages, msg],
+        lastMessage: msg.content,
+        lastMessageTime: msg.timestamp
+      };
+    });
+    localStorage.setItem('smartapprove_chats', JSON.stringify(updatedRooms));
+    return true;
+  };
+
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch(`/chat/rooms/${roomId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(message)
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Failed to send chat message in API, falling back to local storage:', error);
+      return saveLocalMessage(roomId, message);
+    }
+  }
+  return saveLocalMessage(roomId, message);
+};
+
+/**
+ * 채팅방 사용자 초대 및 시스템 메시지 추가
+ */
+export const inviteUserToChatRoom = async (roomId: string, user: User, systemMsg: ChatMessage): Promise<boolean> => {
+  const inviteLocalUser = (rId: string, usr: User, sMsg: ChatMessage) => {
+    const saved = localStorage.getItem('smartapprove_chats');
+    if (!saved) return false;
+    const rooms: ChatRoom[] = JSON.parse(saved);
+    const updatedRooms = rooms.map(room => {
+      if (room.id !== rId) return room;
+      if (room.participants.some(p => p.id === usr.id)) return room;
+      return {
+        ...room,
+        participants: [...room.participants, usr],
+        messages: [...room.messages, sMsg]
+      };
+    });
+    localStorage.setItem('smartapprove_chats', JSON.stringify(updatedRooms));
+    return true;
+  };
+
+  if (isApiMode()) {
+    try {
+      const res = await apiFetch(`/chat/rooms/${roomId}/invite`, {
+        method: 'POST',
+        body: JSON.stringify({ user, systemMsg })
+      });
+      return res.success;
+    } catch (error) {
+      console.error('Failed to invite user in API, falling back to local storage:', error);
+      return inviteLocalUser(roomId, user, systemMsg);
+    }
+  }
+  return inviteLocalUser(roomId, user, systemMsg);
+};
+
