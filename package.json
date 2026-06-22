@@ -7,7 +7,9 @@
     "dev": "concurrently \"vite\" \"npm --prefix server run dev\"",
     "deploy": "deploy.bat",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "npm run build && npm --prefix server install",
+    "start": "node server/index.js"
   },
   "dependencies": {
     "@google/genai": "^1.44.0",

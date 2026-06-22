@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import pool, { initializeDatabase } from './db.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -617,6 +622,15 @@ app.post('/api/migrate', async (req, res) => {
   } finally {
     connection.release();
   }
+});
+
+// Serve static files from the React frontend app
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Catch-all handler to serve index.html for any other requests (React Router support)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Start server
